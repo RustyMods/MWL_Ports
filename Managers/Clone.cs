@@ -9,7 +9,6 @@ public class Clone
     private GameObject? Prefab;
     private readonly string PrefabName;
     private readonly string NewName;
-
     public event Action<GameObject>? OnCreated;
 
     public Clone(string prefabName, string newName)
@@ -19,7 +18,7 @@ public class Clone
         PrefabManager.Clones.Add(this);
     }
 
-    public void Create()
+    internal void Create()
     {
         if (Helpers.GetPrefab(PrefabName) is not { } prefab) return;
         Prefab = Object.Instantiate(prefab, MWL_PortsPlugin.root.transform, false);

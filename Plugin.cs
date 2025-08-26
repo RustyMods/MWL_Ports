@@ -44,8 +44,12 @@ namespace MWL_Ports
             
             // make shipment manager a monobehavior to keep functions within it's scope while taking advantages of monobehaviors
             gameObject.AddComponent<ShipmentManager>();
+            ShipmentManager.PrefabsToSearch.Add("MWL_Port"); // add port variants to search for
+            // this is used by server to iterate through ZDOs and send them to players
+            // this is how portals work
 
-            PortUI.posConfig = config("2 - Settings", "Pos", new Vector3(1760f, 850f, 0f), "Set Pos");
+            PortUI.PanelPositionConfig = config("3 - UI", "Panel Position", new Vector3(1760f, 850f, 0f), "Set position of UI");
+            ShipmentManager.TransitDurationConfig = config("2 - Settings", "Transit Duration", 1800f, "Set duration of shipment transit, in seconds");
             
             BlueprintLocation location = new BlueprintLocation("portbundle", "MWL_Port_Location");
             location.OnCreated += blueprint =>

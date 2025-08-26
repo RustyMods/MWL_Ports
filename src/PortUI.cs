@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using BepInEx.Configuration;
 using HarmonyLib;
 using JetBrains.Annotations;
@@ -98,7 +97,7 @@ public class PortUI : MonoBehaviour
 {
     internal static readonly GameObject ListItem = AssetBundleManager.LoadAsset<GameObject>("portbundle", "ListItem")!;
 
-    public static ConfigEntry<Vector3> posConfig = null!;
+    public static ConfigEntry<Vector3> PanelPositionConfig = null!;
 
     private Image Selected = null!;
     private Image Background = null!;
@@ -115,7 +114,6 @@ public class PortUI : MonoBehaviour
     public static PortUI? instance;
     public Port? m_currentPort;
     public ShipmentManager.PortID? m_selectedDestination;
-    public Shipment? m_selectedShipment;
     public Shipment? m_selectedDelivery;
     private readonly List<TempListItem> m_tempListItems = new();
     private readonly List<Tab> m_tabs = new();
@@ -130,9 +128,9 @@ public class PortUI : MonoBehaviour
     public void Awake()
     {
         instance = this;
-        posConfig.SettingChanged += (sender, args) =>
+        PanelPositionConfig.SettingChanged += (sender, args) =>
         {
-            transform.position = posConfig.Value;
+            transform.position = PanelPositionConfig.Value;
         };
         Selected = transform.Find("Panel/Selected").GetComponent<Image>();
         Background = transform.Find("Panel/bkg").GetComponent<Image>();
@@ -150,6 +148,11 @@ public class PortUI : MonoBehaviour
         ShipmentTab.SetButton(OnShipmentTab);
         DeliveryTab.SetButton(OnDeliveryTab);
         MainButton.onClick.AddListener(OnMainButton);
+        
+        PortTab.SetLabel(LocalKeys.PortLabel);
+        ShipmentTab.SetLabel(LocalKeys.ShipmentLabel);
+        DeliveryTab.SetLabel(LocalKeys.DeliveryLabel);
+        
         Hide();
     }
 
@@ -185,7 +188,6 @@ public class PortUI : MonoBehaviour
         LoadPorts();
         SetMainButtonText("Exit");
         m_selectedDestination = null;
-        m_selectedShipment = null;
         Description.Reset();
         MainButton.interactable = true;
         OnUpdate = null;
@@ -199,7 +201,6 @@ public class PortUI : MonoBehaviour
         LoadPorts();
         SetMainButtonText("Exit");
         m_selectedDestination = null;
-        m_selectedShipment = null;
         Description.Reset();
         MainButton.interactable = true;
         OnUpdate = null;
@@ -214,7 +215,6 @@ public class PortUI : MonoBehaviour
         SetMainButtonText(m_currentPort.m_containersActive ? "Hide Containers" : "Show Containers");
         Description.Reset();
         m_selectedDestination = null;
-        m_selectedShipment = null;
         MainButton.interactable = true;
         OnUpdate = null;
     }
@@ -229,7 +229,6 @@ public class PortUI : MonoBehaviour
         MainButton.interactable = false;
         Description.Reset();
         m_selectedDestination = null;
-        m_selectedShipment = null;
         OnUpdate = null;
     }
 
@@ -291,6 +290,7 @@ public class PortUI : MonoBehaviour
 
     public void AddDelivery(Shipment shipment)
     {
+        if (shipment.State != ShipmentState.Delivered) return;
         TempListItem item = new TempListItem(Instantiate(ListItem, LeftPanelRoot));
         item.SetIcon(shipment.GetIcon(), Color.white);
         item.SetLabel(shipment.OriginPortName);
@@ -300,7 +300,7 @@ public class PortUI : MonoBehaviour
             m_selectedDelivery = shipment;
             Description.SetName(shipment.OriginPortName);
             Description.SetBodyText(shipment.GetTooltip());
-            MainButton.interactable = true;
+            MainButton.interactable = shipment.State == ShipmentState.Delivered;
             OnUpdate = null;
         });
         m_tempListItems.Add(item);
@@ -314,10 +314,25 @@ public class PortUI : MonoBehaviour
         item.SetButton(() =>
         {
             item.SetSelected(true);
-            m_selectedShipment = shipment;
             Description.SetName(shipment.DestinationPortName);
             Description.SetBodyText(shipment.GetTooltip());
             OnUpdate = null;
+            bool shouldUpdate = shipment.State == ShipmentState.InTransit;
+            if (shouldUpdate)
+            {
+                float timer = 0f;
+                OnUpdate = dt =>
+                {
+                    timer += dt;
+                    if (timer <= 1f) return;
+                    timer = 0.0f;
+                    Description.SetBodyText(shipment.GetTooltip());
+                };
+            }
+            else
+            {
+                OnUpdate = null;
+            }
         });
         m_tempListItems.Add(item);
     }
@@ -338,14 +353,24 @@ public class PortUI : MonoBehaviour
             Description.SetName($"<color=orange>{info.name}</color> ({(int)info.GetDistance(Player.m_localPlayer)}m)");
             Description.SetBodyText(info.GetTooltip());
             SetMainButtonText("Send Shipment");
-            float timer = 0f;
-            OnUpdate = dt =>
+            bool shouldUpdate =
+                info.shipments.Any(s => s.State == ShipmentState.InTransit) ||
+                info.deliveries.Any(d => d.State == ShipmentState.InTransit);
+            if (shouldUpdate)
             {
-                timer += dt;
-                if (timer <= 1f) return;
-                timer = 0.0f;
-                Description.SetBodyText(info.GetTooltip());
-            };
+                float timer = 0f;
+                OnUpdate = dt =>
+                {
+                    timer += dt;
+                    if (timer <= 1f) return;
+                    timer = 0.0f;
+                    Description.SetBodyText(info.GetTooltip());
+                };
+            }
+            else
+            {
+                OnUpdate = null;
+            }
         });
         m_tempListItems.Add(item);
     }
@@ -376,15 +401,9 @@ public class PortUI : MonoBehaviour
 
         public void SetIcon(Sprite? sprite, Color color)
         {
-            if (Icon == null)
-            {
-                SetIcon(false);
-            }
-            else
-            {
-                Icon.sprite = sprite;
-                Icon.color = color;
-            }
+            if (Icon == null) return;
+            Icon.sprite = sprite;
+            Icon.color = color;
         }
 
         public void SetIcon(bool enable)

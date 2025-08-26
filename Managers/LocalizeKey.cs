@@ -93,4 +93,16 @@ public class LocalizeKey
 			}
 		}
 	}
+
+	public static Dictionary<string, string> GetKeys(string language)
+	{
+		Dictionary<string, string> output = new Dictionary<string, string>();
+		foreach (var key in keys)
+		{
+			if (!key.Localizations.TryGetValue(language, out string translation)) continue;
+			output.Add(key.Key, translation);
+		}
+
+		return output;
+	}
 }

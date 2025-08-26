@@ -1,12 +1,16 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
+using System.Text;
 using BepInEx;
+using BepInEx.Configuration;
 using HarmonyLib;
 using JetBrains.Annotations;
 using Newtonsoft.Json;
 using ServerSync;
 using UnityEngine;
+using CompressionLevel = System.IO.Compression.CompressionLevel;
 
 namespace MWL_Ports;
 
@@ -14,32 +18,28 @@ namespace MWL_Ports;
 public class ShipmentManager : MonoBehaviour
 {
     public static ShipmentManager? instance;
-    internal static double TransitDuration = 1800.0; // 1 day in-game, so 30min
-    private static string ShipmentFileName = "shipments.json";
+    public static ConfigEntry<float> TransitDurationConfig = null!; 
+    private static string ShipmentFileName = "shipments.dat";
     private static string MWL_FolderName = "MWL_Ports";
     private static string MWL_FolderPath = Paths.ConfigPath + Path.DirectorySeparatorChar + MWL_FolderName;
-    private static string ShipmentFilePath = MWL_FolderPath + Path.DirectorySeparatorChar + ShipmentFileName;
-    
+    private static string GetFilePath(string worldName) => MWL_FolderPath + Path.DirectorySeparatorChar + worldName + "_" + ShipmentFileName;
+    private const bool COMPRESS_DATA = true;
+    private static readonly CustomSyncedValue<string> ServerPortPositions = new(MWL_PortsPlugin.ConfigSync, "MWL_ServerPortPositions", "");
     private static CustomSyncedValue<string>? ServerSyncedShipments;
-    internal static Dictionary<string, Shipment> Shipments = new Dictionary<string, Shipment>();
+    internal static Dictionary<string, Shipment> Shipments = new();
+    private static readonly List<ZDO> TempZDO = new(); // server side
+    private static HashSet<ZDO> TempZDOHashSet = new(); // client side
+    public static readonly List<string> PrefabsToSearch = new();
     
     private float m_checkTransitTimer;
     private float m_checkTransitInterval = 1f;
-    
     private float m_sendPortsInterval = 10f;
-    private static readonly List<ZDO> TempZDO = new(); // server side
-    private static HashSet<ZDO> TempZDOHashSet = new();
-    private static readonly List<string> PrefabsToSearch = new()
-    {
-        "MWL_Port"
-    };
 
     public void Awake()
     {
         instance = this;
         ServerSyncedShipments = new CustomSyncedValue<string>(MWL_PortsPlugin.ConfigSync, "MWL_SyncedShipments", "");
         ServerSyncedShipments.ValueChanged += OnClientUpdateShipments;
-        ReadLocalFile();
     }
 
     public void Update()
@@ -52,6 +52,17 @@ public class ShipmentManager : MonoBehaviour
     {
         // clean up if destroyed for some reason
         instance = null;
+    }
+
+    [HarmonyPatch(typeof(ZNet), nameof(ZNet.Awake))]
+    private static class ZNet_Awake_Patch
+    {
+        [UsedImplicitly]
+        private static void Postfix(ZNet __instance)
+        {
+            if (!__instance.IsServer()) return;
+            ReadLocalFile();
+        }
     }
 
     [HarmonyPatch(typeof(ZNetScene), nameof(ZNetScene.Awake))]
@@ -150,9 +161,24 @@ public class ShipmentManager : MonoBehaviour
     
     public static void ReadLocalFile()
     {
+        if (!ZNet.instance) return;
         if (!Directory.Exists(MWL_FolderPath)) Directory.CreateDirectory(MWL_FolderPath);
-        if (!File.Exists(ShipmentFilePath)) return;
-        Dictionary<string, Shipment>? data = JsonConvert.DeserializeObject<Dictionary<string, Shipment>>(File.ReadAllText(ShipmentFilePath));
+        string path = GetFilePath(ZNet.m_world.m_name);
+        if (!File.Exists(path)) return;
+        string json;
+        if (COMPRESS_DATA)
+        {
+            byte[] compressed = File.ReadAllBytes(path);
+            using MemoryStream memory = new MemoryStream(compressed);
+            using GZipStream zip = new GZipStream(memory, CompressionMode.Decompress);
+            using StreamReader reader = new StreamReader(zip, Encoding.UTF8);
+            json = reader.ReadToEnd();
+        }
+        else
+        {
+            json = File.ReadAllText(path);
+        }
+        Dictionary<string, Shipment>? data = JsonConvert.DeserializeObject<Dictionary<string, Shipment>>(json);
         if (data == null) return;
         Shipments = data;
     }
@@ -161,10 +187,24 @@ public class ShipmentManager : MonoBehaviour
     {
         if (ServerSyncedShipments == null) return;
         if (!ZNet.instance || !ZNet.instance.IsServer()) return;
-        string data = JsonConvert.SerializeObject(Shipments, Formatting.Indented);
-        ServerSyncedShipments.Value = data;
+        string json = JsonConvert.SerializeObject(Shipments, Formatting.Indented);
+        ServerSyncedShipments.Value = json;
         if (!Directory.Exists(MWL_FolderPath)) Directory.CreateDirectory(MWL_FolderPath);
-        File.WriteAllText(ShipmentFilePath, data);
+        string path = GetFilePath(ZNet.m_world.m_name);
+        if (COMPRESS_DATA)
+        {
+            byte[] rawBytes = Encoding.UTF8.GetBytes(json);
+            using MemoryStream memory = new MemoryStream();
+            using (GZipStream zip = new GZipStream(memory, CompressionLevel.Fastest))
+            {
+                zip.Write(rawBytes, 0, rawBytes.Length);
+            }
+            File.WriteAllBytes(path, memory.ToArray());
+        }
+        else
+        {
+            File.WriteAllText(path, json);
+        }
     }
 
     [HarmonyPatch(typeof(ZNetScene), nameof(ZNetScene.Awake))]

@@ -10,16 +10,16 @@ namespace MWL_Ports;
 [Serializable][PublicAPI][JsonObject(MemberSerialization.Fields)]
 public class Shipment
 {
-    public string OriginPortName;
-    public string DestinationPortName;
-    public string OriginPortID = null!; // Guid.ToString()
-    public string DestinationPortID = null!;
-    public string ShipmentID = null!;
+    public string OriginPortName = string.Empty;
+    public string DestinationPortName = string.Empty;
+    public string OriginPortID = string.Empty; // Guid.ToString()
+    public string DestinationPortID = string.Empty;
+    public string ShipmentID = string.Empty;
     public ShipmentState State = ShipmentState.Pending;
     public double ArrivalTime;
     public List<ShipmentItem> Items = new List<ShipmentItem>();
 
-    public bool IsValid = true;
+    [NonSerialized] public bool IsValid = true;
     public Shipment(ShipmentManager.PortID originPort, ShipmentManager.PortID destinationPort)
     {
         OriginPortName = originPort.Name;
@@ -27,7 +27,7 @@ public class Shipment
         DestinationPortID = destinationPort.Guid;
         DestinationPortName = destinationPort.Name;
         ShipmentID = Guid.NewGuid().ToString();
-        ArrivalTime = ZNet.instance.GetTimeSeconds() + ShipmentManager.TransitDuration;
+        ArrivalTime = ZNet.instance.GetTimeSeconds() + ShipmentManager.TransitDurationConfig.Value;
     }
 
     public Shipment(string serializedShipment)
@@ -46,7 +46,7 @@ public class Shipment
         DestinationPortID = data.DestinationPortID;
         ShipmentID = data.ShipmentID;
         State = data.State;
-        ArrivalTime = ZNet.instance.GetTimeSeconds() + ShipmentManager.TransitDuration;
+        ArrivalTime = ZNet.instance.GetTimeSeconds() + ShipmentManager.TransitDurationConfig.Value;
         Items = data.Items;
         ShipmentManager.Shipments[ShipmentID] = this;
         ShipmentManager.UpdateShipments();
@@ -123,10 +123,11 @@ public class Shipment
     
     public string GetTooltip()
     {
+        string time = FormatTimeToArrival();
         StringBuilder stringBuilder = new();
         stringBuilder.Append($"Origin Port: <color=orange>{OriginPortName}</color>");
         stringBuilder.Append($"\nDestination Port:  <color=orange>{DestinationPortName}</color>");
-        stringBuilder.Append($"\nState: <color=yellow>{State}</color>\n");
+        stringBuilder.AppendFormat("\nState: <color=yellow>{0}</color>{1}\n", State, string.IsNullOrEmpty(time) ? "" : $" ({time})");
         stringBuilder.Append("\nItems: ");
         foreach (ShipmentItem? shipmentItem in Items)
         {
@@ -148,7 +149,8 @@ public class Shipment
             "Shipment ID:           " + ShipmentID,
             "State:                 " + State,
             "Arrival Time:          " + ArrivalTime,
-            "Items Count:           " + Items.Count
+            "Items Count:           " + Items.Count,
+            ""
         };
         return log;
     }
