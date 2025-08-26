@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace MWL_Ports;
 
-[Serializable][PublicAPI]
+[Serializable][PublicAPI][JsonObject(MemberSerialization.Fields)]
 public class Shipment
 {
     public string OriginPortName;
@@ -19,7 +19,6 @@ public class Shipment
     public List<ShipmentItem> Items = new List<ShipmentItem>();
 
     public bool IsValid = true;
-
     public Shipment(ShipmentManager.PortID originPort, ShipmentManager.PortID destinationPort)
     {
         OriginPortName = originPort.Name;
@@ -49,7 +48,7 @@ public class Shipment
         ArrivalTime = ZNet.instance.GetTimeSeconds() + ShipmentManager.TransitDuration;
         Items = data.Items;
         ShipmentManager.Shipments[ShipmentID] = this;
-        ShipmentManager.instance.UpdateShipments();
+        ShipmentManager.UpdateShipments();
     }
     
     public void SendToServer()
@@ -59,7 +58,7 @@ public class Shipment
         {
             // if local client is server, then simply register to shipments, and update
             ShipmentManager.Shipments[ShipmentID]  = this;
-            ShipmentManager.instance.UpdateShipments();
+            ShipmentManager.UpdateShipments();
         }
         else
         {
@@ -80,7 +79,7 @@ public class Shipment
             else
             {
                 Debug.LogWarning($"{Player.m_localPlayer.GetPlayerName()} said collected shipment {ShipmentID}, removing from dictionary");
-                ShipmentManager.instance.UpdateShipments();
+                ShipmentManager.UpdateShipments();
             }
         }
         else
@@ -91,10 +90,30 @@ public class Shipment
 
     public void CheckTransit()
     {
-        State = ZNet.instance.GetTimeSeconds() < ArrivalTime ? ShipmentState.InTransit : ShipmentState.Pending;
+        State = ZNet.instance.GetTimeSeconds() < ArrivalTime ? ShipmentState.InTransit : ShipmentState.Delivered;
     }
     
     public string ToJson() => JsonConvert.SerializeObject(this);
+
+    public string GetTooltip()
+    {
+
+        return "";
+    }
+
+    public List<string> LogPrint()
+    {
+        List<string> log = new List<string>();
+        log.Add("OriginPortName: " + OriginPortName);
+        log.Add("DestinationPortName: " + DestinationPortName);
+        log.Add("OriginPortID: " + OriginPortID);
+        log.Add("DestinationPortID: " + DestinationPortID);
+        log.Add("ShipmentID: " + ShipmentID);
+        log.Add("State: " + State);
+        log.Add("ArrivalTime: " + ArrivalTime);
+        log.Add("Items.Count: " + Items.Count);
+        return log;
+    }
 }
 
 [PublicAPI]
@@ -105,7 +124,7 @@ public enum ShipmentState
     Delivered
 }
 
-[Serializable][PublicAPI]
+[Serializable][PublicAPI][JsonObject(MemberSerialization.Fields)]
 public class ShipmentItem
 {
     public string ChestID;
@@ -157,5 +176,42 @@ public class ShipmentItem
         }
 
         return null;
+    }
+    
+    public ShipmentItem(ZPackage pkg)
+    {
+        ChestID = pkg.ReadString();
+        ItemName = pkg.ReadString();
+        Stack = pkg.ReadInt();
+        Durability = (float)pkg.ReadDouble();
+        Quality = pkg.ReadInt();
+        Variant = pkg.ReadInt();
+        CrafterID = pkg.ReadLong();
+        CrafterName = pkg.ReadString();
+        CustomData = new Dictionary<string, string>();
+        int customDataCount = pkg.ReadInt();
+        if (customDataCount <= 0) return;
+        for (int i = 0; i < customDataCount; i++)
+        {
+            CustomData[pkg.ReadString()] = pkg.ReadString();
+        }
+    }
+
+    public void Write(ZPackage pkg)
+    {
+        pkg.Write(ChestID);
+        pkg.Write(ItemName);
+        pkg.Write(Stack);
+        pkg.Write((double)Durability);
+        pkg.Write(Quality);
+        pkg.Write(Variant);
+        pkg.Write(CrafterID);
+        pkg.Write(CrafterName);
+        pkg.Write(CustomData.Count);
+        foreach (var kvp in CustomData)
+        {
+            pkg.Write(kvp.Key);
+            pkg.Write(kvp.Value);
+        }
     }
 }

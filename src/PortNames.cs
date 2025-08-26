@@ -30,11 +30,11 @@ public static class PortNames
         { "$MWL_PortName_Skaldhavn", "Skaldhavn Port" }
     };
 
-    private static List<string> UsedTokens = new();
+    private static readonly List<string> UsedTokens = new();
     
     public static void Setup()
     {
-        foreach (var kvp in Tokens)
+        foreach (KeyValuePair<string, string> kvp in Tokens)
         {
             LocalizeKey key = new LocalizeKey(kvp.Key);
             key.English(kvp.Value);

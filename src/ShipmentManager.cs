@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using BepInEx;
 using HarmonyLib;
 using JetBrains.Annotations;
@@ -21,14 +22,15 @@ public class ShipmentManager : MonoBehaviour
     private static string MWL_FolderPath = Paths.ConfigPath + Path.DirectorySeparatorChar + MWL_FolderName;
     private static string ShipmentFilePath = MWL_FolderPath + Path.DirectorySeparatorChar + ShipmentFileName;
     
-    private CustomSyncedValue<string>? ServerSyncedShipments;
+    private static CustomSyncedValue<string>? ServerSyncedShipments;
     internal static Dictionary<string, Shipment> Shipments = new Dictionary<string, Shipment>();
     
     private float m_checkTransitTimer;
     private float m_checkTransitInterval = 1f;
     
     private float m_sendPortsInterval = 10f;
-    private static readonly List<ZDO> TempZDO = new();
+    private static readonly List<ZDO> TempZDO = new(); // server side
+    private static HashSet<ZDO> TempZDOHashSet = new();
     private static readonly List<string> PrefabsToSearch = new()
     {
         "MWL_Port"
@@ -91,6 +93,7 @@ public class ShipmentManager : MonoBehaviour
 
     public void CheckTransit(float dt)
     {
+        if (!ZNet.instance) return;
         m_checkTransitTimer += dt;
         if (m_checkTransitTimer < m_checkTransitInterval) return;
         foreach (Shipment shipment in Shipments.Values)
@@ -109,7 +112,7 @@ public class ShipmentManager : MonoBehaviour
         Shipments = data;
     }
 
-    public HashSet<ZDO> GetPorts()
+    public static HashSet<ZDO> GetPorts()
     {
         List<ZDO> ports = new List<ZDO>();
         foreach (string prefab in PrefabsToSearch)
@@ -119,10 +122,13 @@ public class ShipmentManager : MonoBehaviour
             {
             }
         }
-        return new  HashSet<ZDO>(ports);
+        TempZDOHashSet = new HashSet<ZDO>(ports);
+        return TempZDOHashSet;
     }
+    
+    public static HashSet<ZDO> GetTempPorts() => TempZDOHashSet;
 
-    public List<Shipment> GetShipments(string portID)
+    public static List<Shipment> GetShipments(string portID)
     {
         List<Shipment> shipments = new List<Shipment>();
         foreach (var shipment in Shipments.Values)
@@ -133,7 +139,7 @@ public class ShipmentManager : MonoBehaviour
         return shipments;
     }
 
-    public List<Shipment> GetDeliveries(string portID)
+    public static List<Shipment> GetDeliveries(string portID)
     {
         List<Shipment> shipments = new List<Shipment>();
         foreach (var shipment in Shipments.Values)
@@ -144,7 +150,7 @@ public class ShipmentManager : MonoBehaviour
         return shipments;
     }
     
-    public void ReadLocalFile()
+    public static void ReadLocalFile()
     {
         if (!Directory.Exists(MWL_FolderPath)) Directory.CreateDirectory(MWL_FolderPath);
         if (!File.Exists(ShipmentFilePath)) return;
@@ -153,7 +159,7 @@ public class ShipmentManager : MonoBehaviour
         Shipments = data;
     }
 
-    public void UpdateShipments()
+    public static void UpdateShipments()
     {
         if (ServerSyncedShipments == null) return;
         if (!ZNet.instance || !ZNet.instance.IsServer()) return;
@@ -181,7 +187,7 @@ public class ShipmentManager : MonoBehaviour
         Debug.LogWarning(newShipment.IsValid
             ? $"Shipment from {senderName} registered!"
             : $"Shipment from {senderName} is invalid");
-        if (newShipment.IsValid) instance.UpdateShipments();
+        if (newShipment.IsValid) UpdateShipments();
     }
 
     public static void RPC_ServerShipmentCollected(long sender, string senderName, string shipmentID)
@@ -194,7 +200,7 @@ public class ShipmentManager : MonoBehaviour
         else
         {
             Debug.LogWarning($"{senderName} said collected shipment {shipmentID}, removing from dictionary");
-            instance.UpdateShipments();
+            UpdateShipments();
         }
     }
 

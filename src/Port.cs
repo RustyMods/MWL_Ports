@@ -15,9 +15,11 @@ public class Port : MonoBehaviour, Interactable, Hoverable
     public readonly List<TempContainer> m_tempContainers = new();
     public readonly Dictionary<string, Shipment> m_deliveries = new ();
     public readonly Dictionary<string, Container> m_containers = new();
-    public bool m_containersActive => m_containers.Count > 0;
+    public bool m_containersActive;
     public bool m_containersAreEmpty = true;
     public string? m_selectedDelivery;
+
+    public static readonly List<ShipmentItem> m_tempItems = new();
     public void Awake()
     {
         m_view = GetComponent<ZNetView>();
@@ -37,7 +39,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         m_portID.Name = m_name;
         m_view.GetZDO().Set(PortVars.Guid, m_portID.Guid);
         m_view.GetZDO().Set(PortVars.Name, m_name);
-        CheckDeliveries();
+        GetDeliveries();
     }
 
     public void Start()
@@ -45,6 +47,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         if (!m_view.IsValid()) return;
         CreateContainers();
         SetContainersVisible(false);
+        LoadSavedItems();
     }
 
     public void OnDestroy()
@@ -52,12 +55,51 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         DestroyContainers();
     }
 
+    public void SaveItems()
+    {
+        m_tempItems.Clear();
+        if (!m_view.IsValid())
+        {
+            Debug.LogWarning("ZNETVIEW not valid when trying to save items");
+            return;
+        }
+        if (!m_containersAreEmpty)
+        {
+            m_tempItems.Add(m_containers.Values.ToArray());
+            ZPackage pkg = new ZPackage();
+            pkg.Write(m_tempItems.Count);
+            foreach (ShipmentItem? item in m_tempItems)
+            {
+                item.Write(pkg);
+            }
+
+            m_view.GetZDO().Set(PortVars.Items, pkg.GetBase64());
+        }
+    }
+
+    public void LoadSavedItems()
+    {
+        string? data = m_view.GetZDO().GetString(PortVars.Items);
+        if (string.IsNullOrWhiteSpace(data)) return;
+        ZPackage pkg = new ZPackage(data);
+        int itemCount = pkg.ReadInt();
+        for (int i = 0; i < itemCount; i++)
+        {
+            ShipmentItem temp = new ShipmentItem(pkg);
+            m_tempItems.Add(temp);
+        }
+
+        LoadItems(m_tempItems);
+    }
+
     public void SetContainersVisible(bool visible)
     {
-        foreach (var container in m_containers.Values)
+        foreach (Container container in m_containers.Values)
         {
             container.gameObject.SetActive(visible);
         }
+
+        m_containersActive = visible;
     }
 
     public void CreateContainers()
@@ -68,7 +110,9 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         {
             Container container = temp.Spawn();
             ++count;
-            m_containers.Add(container.name.Replace("Clone", count.ToString()), container);
+            var newName = container.name.Replace("Clone", count.ToString());
+            container.name = newName;
+            m_containers.Add(newName, container);
             container.GetInventory().m_onChanged = CheckContainers;
         }
     }
@@ -84,10 +128,9 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         m_containers.Clear();
     }
 
-    public void CheckDeliveries()
+    public void GetDeliveries()
     {
-        if (ShipmentManager.instance == null) return;
-        foreach (var delivery in ShipmentManager.instance.GetDeliveries(m_portID.Guid))
+        foreach (Shipment? delivery in ShipmentManager.GetDeliveries(m_portID.Guid))
         {
             m_deliveries[delivery.ShipmentID] = delivery;
         }
@@ -103,7 +146,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             m_containersAreEmpty = false;
             break;
         }
-
+        SaveItems();
         if (!m_containersAreEmpty || m_selectedDelivery == null || !m_deliveries.TryGetValue(m_selectedDelivery, out Shipment currentDelivery)) return;
         // if containers are empty, then mark shipment as collected
         m_deliveries.Remove(m_selectedDelivery);
@@ -114,7 +157,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
     public bool Interact(Humanoid user, bool hold, bool alt)
     {
         if (PortUI.instance == null) return false;
-        CheckDeliveries();
+        GetDeliveries();
         PortUI.instance.Show(this);
         return false;
     }
@@ -129,7 +172,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         return Localization.instance.Localize(stringBuilder.ToString());
     }
 
-    public bool LoadContainers(string selectedShipment)
+    public void LoadItems(List<ShipmentItem> items)
     {
         // remove all and make sure not to trigger CheckContainers()
         foreach (Container container in m_containers.Values)
@@ -137,30 +180,35 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             container.GetInventory().m_onChanged = null;
             container.GetInventory().RemoveAll();
         }
-        // load items
-        if (!m_deliveries.TryGetValue(selectedShipment, out Shipment shipment))
+        foreach (ShipmentItem item in items)
         {
-            Debug.LogWarning("Failed to find shipment: " + selectedShipment);
-        }
-        else
-        {
-            foreach (ShipmentItem item in shipment.Items)
+            if (item.GetItemData() is not { } itemData) continue;
+            if (!m_containers.TryGetValue(item.ChestID, out Container container))
             {
-                if (item.GetItemData() is not { } itemData) continue;
-                if (!m_containers.TryGetValue(item.ChestID, out Container container))
-                {
-                    Debug.LogWarning("Failed to find container: " + item.ChestID);
-                }
-                else
-                {
-                    container.GetInventory().AddItem(itemData);
-                }
+                Debug.LogWarning("Failed to find container: " + item.ChestID);
+            }
+            else
+            {
+                container.GetInventory().AddItem(itemData);
             }
         }
         // reset CheckContainers()
         foreach (Container container in m_containers.Values)
         {
             container.GetInventory().m_onChanged = CheckContainers;
+        }
+    }
+
+    public bool LoadContainers(string selectedShipment)
+    {
+        if (!m_deliveries.TryGetValue(selectedShipment, out Shipment shipment))
+        {
+            Debug.LogWarning("Failed to find shipment: " + selectedShipment);
+        }
+        else
+        {
+            LoadItems(shipment.Items);
+            m_selectedDelivery = selectedShipment;
         }
         CheckContainers();
         return !m_containersAreEmpty; // if true, make containers visible
@@ -170,11 +218,12 @@ public class Port : MonoBehaviour, Interactable, Hoverable
     {
         CheckContainers();
         if (m_containersAreEmpty) return false;
-        var shipment = new Shipment(m_portID, selectedPort);
-        var containers = m_containers.Values.ToArray();
+        Shipment shipment = new Shipment(m_portID, selectedPort);
+        Container[] containers = m_containers.Values.ToArray();
         shipment.Items.Add(containers);
         shipment.SendToServer();
         containers.EmptyAll();
+        m_view.GetZDO().Set(PortVars.Items, "");
         return true;
     }
 
@@ -201,8 +250,8 @@ public class Port : MonoBehaviour, Interactable, Hoverable
 
     public class PortInfo
     {
-        public string name;
-        public string guid;
+        public readonly string name;
+        public readonly string guid;
         public Vector3 position;
 
         public PortInfo(ZDO zdo)
@@ -219,5 +268,6 @@ public class Port : MonoBehaviour, Interactable, Hoverable
     {
         public static readonly int Name = "PortName".GetStableHashCode();
         public static readonly int Guid = "PortGUID".GetStableHashCode();
+        public static readonly int Items = "PortItems".GetStableHashCode();
     }
 }

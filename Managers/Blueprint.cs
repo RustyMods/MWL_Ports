@@ -66,21 +66,10 @@ public class Blueprint
     {
         public readonly GameObject Original;
         public readonly Transform Mock;
-
         public BlueprintObject(GameObject original, Transform mock)
         {
             Original = original;
             Mock = mock;
-        }
-    }
-    
-    [HarmonyPatch(typeof(ZNetView), nameof(ZNetView.Awake))]
-    private static class ZNetView_Awake_Patch
-    {
-        private static bool Prefix(ZNetView __instance)
-        {
-            
-            return true;
         }
     }
 }

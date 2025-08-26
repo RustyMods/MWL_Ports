@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
@@ -41,6 +40,7 @@ namespace MWL_Ports
             root.SetActive(false);
             
             PortNames.Setup();
+            Commands.Setup();
             
             // make shipment manager a monobehavior to keep functions within it's scope while taking advantages of monobehaviors
             gameObject.AddComponent<ShipmentManager>();
@@ -87,6 +87,7 @@ namespace MWL_Ports
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On,
                 "If on, the configuration is locked and can be changed by server admins only.");
             _ = ConfigSync.AddLockingConfigEntry(_serverConfigLocked);
+            
             Assembly assembly = Assembly.GetExecutingAssembly();
             _harmony.PatchAll(assembly);
             SetupWatcher();
@@ -152,34 +153,6 @@ namespace MWL_Ports
             [UsedImplicitly] public bool? Browsable = null!;
             [UsedImplicitly] public string? Category = null!;
             [UsedImplicitly] public Action<ConfigEntryBase>? CustomDrawer = null!;
-        }
-
-        class AcceptableShortcuts : AcceptableValueBase
-        {
-            public AcceptableShortcuts() : base(typeof(KeyboardShortcut))
-            {
-            }
-
-            public override object Clamp(object value) => value;
-            public override bool IsValid(object value) => true;
-
-            public override string ToDescriptionString() =>
-                "# Acceptable values: " + string.Join(", ", UnityInput.Current.SupportedKeyCodes);
-        }
-    }
-
-    public static class KeyboardExtensions
-    {
-        public static bool IsKeyDown(this KeyboardShortcut shortcut)
-        {
-            return shortcut.MainKey != KeyCode.None && Input.GetKeyDown(shortcut.MainKey) &&
-                   shortcut.Modifiers.All(Input.GetKey);
-        }
-
-        public static bool IsKeyHeld(this KeyboardShortcut shortcut)
-        {
-            return shortcut.MainKey != KeyCode.None && Input.GetKey(shortcut.MainKey) &&
-                   shortcut.Modifiers.All(Input.GetKey);
         }
     }
 }

@@ -135,7 +135,6 @@ public class LocationManager
         }
     }
     
-    
     [PublicAPI]
     public class CustomLocation
     {

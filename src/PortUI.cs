@@ -115,6 +115,7 @@ public class PortUI : MonoBehaviour
     public Port? m_currentPort;
     public ShipmentManager.PortID? m_selectedDestination;
     public Shipment? m_selectedShipment;
+    public Shipment? m_selectedDelivery;
     private readonly List<TempListItem> m_tempListItems = new();
     private readonly List<Tab> m_tabs = new();
     private TabOption m_currentTab = TabOption.Ports;
@@ -142,11 +143,10 @@ public class PortUI : MonoBehaviour
         LeftPanelRoot =  transform.Find("Panel/LeftPanel/Viewport/ListRoot").GetComponent<RectTransform>();
         Description = new RightPanel(transform.Find("Panel/Description/Name").GetComponent<Text>(), transform.Find("Panel/Description/Body/Viewport/Text").GetComponent<Text>());
         m_tabs.Add(PortTab, ShipmentTab, DeliveryTab);
-        PortTab.SetButton(() => OnPortTab());
+        PortTab.SetButton(OnPortTab);
         ShipmentTab.SetButton(OnShipmentTab);
         DeliveryTab.SetButton(OnDeliveryTab);
         MainButton.onClick.AddListener(OnMainButton);
-        OnPortTab(false);
         Hide();
     }
 
@@ -170,21 +170,21 @@ public class PortUI : MonoBehaviour
         m_currentPort = port;
         gameObject.SetActive(true);
         PortTab.SetSelected(true);
-        LoadPorts();
         SetTopic(m_currentPort.m_name);
         Description.SetBodyText("");
+        OnPortTab();
     }
 
-    public void OnPortTab(bool loadPorts = true)
+    public void OnPortTab()
     {
         m_currentTab = TabOption.Ports;
         if (PortTab.IsSelected) return;
         PortTab.SetSelected(true);
-        if (loadPorts) LoadPorts();
+        LoadPorts();
         SetMainButtonText("Exit");
         m_selectedDestination = null;
         m_selectedShipment = null;
-        Description.SetBodyText("");
+        Description.Reset();
         MainButton.interactable = true;
     }
 
@@ -195,7 +195,7 @@ public class PortUI : MonoBehaviour
         ShipmentTab.SetSelected(true);
         LoadShipments();
         SetMainButtonText(m_currentPort.m_containersActive ? "Hide Containers" : "Show Containers");
-        Description.SetBodyText("");
+        Description.Reset();
         m_selectedDestination = null;
         m_selectedShipment = null;
         MainButton.interactable = true;
@@ -206,10 +206,10 @@ public class PortUI : MonoBehaviour
         m_currentTab = TabOption.Delivery;
         if (DeliveryTab.IsSelected) return;
         DeliveryTab.SetSelected(true);
-        ClearLeftPanel();
+        LoadDeliveries();
         SetMainButtonText("Open Delivery");
         MainButton.interactable = false;
-        Description.SetBodyText("");
+        Description.Reset();
         m_selectedDestination = null;
         m_selectedShipment = null;
     }
@@ -220,7 +220,7 @@ public class PortUI : MonoBehaviour
         switch (m_currentTab)
         {
             case TabOption.Ports:
-                if (m_selectedDestination.HasValue)
+                if (m_selectedDestination != null)
                 {
                     var result = m_currentPort.SendShipment(m_selectedDestination.Value);
                     m_selectedDestination = null;
@@ -229,10 +229,11 @@ public class PortUI : MonoBehaviour
                 break;
             case TabOption.Shipments:
                 m_currentPort.SetContainersVisible(!m_currentPort.m_containersActive);
-                MainButtonText.text = m_currentPort.m_containersActive ? "Hide Containers" : "Show Containers";
+                SetMainButtonText(m_currentPort.m_containersActive ? "Hide Containers" : "Show Containers");
                 break;
             case TabOption.Delivery:
-                m_currentPort.SetContainersVisible(true);
+                if (m_selectedDelivery == null) return;
+                m_currentPort.SetContainersVisible(m_currentPort.LoadContainers(m_selectedDelivery.ShipmentID));
                 break;
         }
     }
@@ -240,25 +241,59 @@ public class PortUI : MonoBehaviour
     public void LoadPorts()
     {
         ClearLeftPanel();
-        if (ShipmentManager.instance == null) return;
-        foreach (ZDO port in ShipmentManager.instance.GetPorts()) AddPort(port);
+        foreach (ZDO port in ShipmentManager.GetPorts()) AddPort(port);
     }
 
     public void LoadShipments()
     {
         ClearLeftPanel();
-        if (ShipmentManager.instance == null || m_currentPort == null) return;
-        var shipments = ShipmentManager.instance.GetShipments(m_currentPort.m_portID.Guid);
+        if (m_currentPort == null) return;
+        var shipments = ShipmentManager.GetShipments(m_currentPort.m_portID.Guid);
         foreach (Shipment shipment in shipments)
         {
             AddShipment(shipment);
         }
     }
 
+    public void LoadDeliveries()
+    {
+        ClearLeftPanel();
+        if (m_currentPort == null) return;
+        List<Shipment> deliveries = ShipmentManager.GetDeliveries(m_currentPort.m_portID.Guid);
+        foreach(Shipment? delivery in deliveries) AddDelivery(delivery);
+    }
+
     public void ClearLeftPanel()
     {
         foreach(TempListItem? item in m_tempListItems) item.Destroy();
         m_tempListItems.Clear();
+    }
+
+    public void AddDelivery(Shipment shipment)
+    {
+        TempListItem item = new TempListItem(Instantiate(ListItem, LeftPanelRoot));
+        item.SetIcon(false);
+        item.SetLabel(shipment.DestinationPortName);
+        item.SetButton(() =>
+        {
+            item.SetSelected(true);
+            m_selectedDelivery = shipment;
+            Description.SetName(shipment.OriginPortName);
+            StringBuilder stringBuilder = new();
+            stringBuilder.Append($"Origin Port: {shipment.OriginPortName}");
+            stringBuilder.Append($"\nDestination Port:  {shipment.DestinationPortName}");
+            stringBuilder.Append($"\nState: {shipment.State}\n");
+            foreach (ShipmentItem? shipmentItem in shipment.Items)
+            {
+                if (ObjectDB.instance.GetItemPrefab(shipmentItem.ItemName) is not { } itemPrefab ||
+                    !itemPrefab.TryGetComponent(out ItemDrop component)) continue;
+                stringBuilder.Append($"\n{component.m_itemData.m_shared.m_name}");
+                if (shipmentItem.Stack > 1) stringBuilder.Append($" x{shipmentItem.Stack}");
+            }
+            Description.SetBodyText(stringBuilder.ToString());
+            MainButton.interactable = true;
+        });
+        m_tempListItems.Add(item);
     }
 
     public void AddShipment(Shipment shipment)
@@ -273,8 +308,9 @@ public class PortUI : MonoBehaviour
             Description.SetName(shipment.DestinationPortName);
             StringBuilder stringBuilder = new();
             stringBuilder.Append($"Origin Port: {shipment.OriginPortName}");
-            stringBuilder.Append($"\nState: {shipment.State}");
-            foreach (var shipmentItem in shipment.Items)
+            stringBuilder.Append($"\nDestination Port:  {shipment.DestinationPortName}");
+            stringBuilder.Append($"\nState: {shipment.State}\n");
+            foreach (ShipmentItem? shipmentItem in shipment.Items)
             {
                 if (ObjectDB.instance.GetItemPrefab(shipmentItem.ItemName) is not { } itemPrefab ||
                     !itemPrefab.TryGetComponent(out ItemDrop component)) continue;
@@ -283,6 +319,7 @@ public class PortUI : MonoBehaviour
             }
             Description.SetBodyText(stringBuilder.ToString());
         });
+        m_tempListItems.Add(item);
     }
 
     public void AddPort(ZDO port)
@@ -297,13 +334,9 @@ public class PortUI : MonoBehaviour
         item.SetButton(() =>
         {
             item.SetSelected(true);
-            m_selectedDestination = new ShipmentManager.PortID(info.name, info.guid);
+            m_selectedDestination = new ShipmentManager.PortID(info.guid, info.name);
             Description.SetName($"{info.name} ({info.GetDistance(Player.m_localPlayer):0})");
-            m_currentPort.CheckContainers();
-            if (!m_currentPort.m_containersAreEmpty)
-            {
-                MainButtonText.text = "Send Shipment";
-            }
+            SetMainButtonText("Send Shipment");
         });
         m_tempListItems.Add(item);
     }
@@ -313,15 +346,6 @@ public class PortUI : MonoBehaviour
         if (m_currentPort == null) return;
         bool hasItems = m_currentPort.LoadContainers(shipmentID);
         m_currentPort.SetContainersVisible(hasItems);
-    }
-
-    public void OnSend()
-    {
-        if (m_currentPort == null || m_selectedDestination == null) return;
-        if (m_currentPort.m_containers.Count <= 0 || ShipmentManager.instance == null) return;
-        Shipment shipment = new Shipment(m_currentPort.m_portID,  m_selectedDestination.Value);
-        shipment.Items.Add(m_currentPort.m_containers.Values.ToArray());
-        shipment.SendToServer();
     }
 
     private class TempListItem
@@ -421,9 +445,9 @@ public class PortUI : MonoBehaviour
 
     public class RightPanel
     {
-        private Text Name;
-        private Text BodyText;
-        private RectTransform BodyRect;
+        private readonly Text Name;
+        private readonly Text BodyText;
+        private readonly RectTransform BodyRect;
 
         public RightPanel(Text name, Text body)
         {
@@ -442,8 +466,14 @@ public class PortUI : MonoBehaviour
             BodyText.text = Localization.instance.Localize(body);
             ResizePanel();
         }
-        
-        internal void ResizePanel()
+
+        public void Reset()
+        {
+            SetName("");
+            SetBodyText("");
+        }
+
+        private void ResizePanel()
         {
             float height = GetTextPreferredHeight(BodyText, BodyRect);
             float minHeight = 400f;
