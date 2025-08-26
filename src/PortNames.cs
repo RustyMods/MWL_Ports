@@ -53,6 +53,7 @@ public static class PortNames
             string? randomToken = Tokens.Keys.ToList()[UnityEngine.Random.Range(0, Tokens.Count)];
             if (UsedTokens.Contains(randomToken)) continue;
             token = randomToken;
+            UsedTokens.Add(token);
         }
         return token;
     }
