@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace MWL_Ports;
 
+// remove this if you do not want minimap icons, or do not want minimap icons to show port name
 [HarmonyPatch(typeof(Minimap), nameof(Minimap.UpdateLocationPins))]
 public static class Minimap_UpdateLocationPins_Patch
 {

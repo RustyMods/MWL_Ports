@@ -51,6 +51,9 @@ namespace MWL_Ports
             PortUI.PanelPositionConfig = config("3 - UI", "Panel Position", new Vector3(1760f, 850f, 0f), "Set position of UI");
             ShipmentManager.TransitDurationConfig = config("2 - Settings", "Transit Duration", 1800f, "Set duration of shipment transit, in seconds");
             
+            // this gets created after blueprints
+            // it will iterate through children to find prefabs
+            // and replace them
             BlueprintLocation location = new BlueprintLocation("portbundle", "MWL_Port_Location");
             location.OnCreated += blueprint =>
             {
@@ -64,9 +67,13 @@ namespace MWL_Ports
                 blueprint.Location.Group.Name = "MWL_Ports";
                 blueprint.Location.Placement.DistanceFromSimilar.Min = 300f;
                 blueprint.Location.Icon.Enabled = true;
+                // blueprint.Location.Icon.Icon = MySprite ----> if you want to use a custom sprite
                 blueprint.Location.Icon.InGameIcon = LocationManager.IconSettings.LocationIcon.Hildir;
             };
             
+            // this gets created before blueprint location
+            // since this prefab has a ZNetView, we make sure to create it as its own prefab first
+            // then the location uses it when creating itself
             Blueprint port = new Blueprint("portbundle", "MWL_Port");
             port.Prefab.AddComponent<Port>();
             port.OnCreated += blueprint =>
@@ -80,6 +87,7 @@ namespace MWL_Ports
                 PrefabManager.RegisterPrefab(blueprint.Prefab);
             };
             
+            // simple class to clone in-game assets
             Clone piece_chest_wood = new Clone("piece_chest_wood", "port_chest_wood");
             piece_chest_wood.OnCreated += prefab =>
             {

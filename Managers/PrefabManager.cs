@@ -14,6 +14,7 @@ public static class PrefabManager
     internal static Dictionary<string, BlueprintLocation> BlueprintLocations = new();
     internal static List<Clone> Clones = new();
     
+    // static constructor, gets called first time PrefabManager is accessed
     static PrefabManager()
     {
         Harmony harmony = new("org.bepinex.helpers.MWL_Manager");
@@ -31,9 +32,7 @@ public static class PrefabManager
         if (prefab == null) return;
         PrefabsToRegister.Add(prefab);
     }
-    
     public static void RegisterPrefab(string assetBundleName, string prefabName) => RegisterPrefab(AssetBundleManager.LoadAsset<GameObject>(assetBundleName, prefabName));
-
     public static void RegisterPrefab(AssetBundle assetBundle, string prefabName) =>  RegisterPrefab(assetBundle.LoadAsset<GameObject>(prefabName));
 
     [HarmonyPriority(Priority.VeryHigh)]
@@ -41,7 +40,7 @@ public static class PrefabManager
     {
         foreach (GameObject prefab in PrefabsToRegister)
         {
-            if (!prefab.GetComponent<ZNetView>()) continue;
+            if (!prefab.GetComponent<ZNetView>()) continue; // make sure asset even needs to be registered to ZNetScene
             __instance.m_prefabs.Add(prefab);
         }
     }
@@ -50,9 +49,9 @@ public static class PrefabManager
     {
         Helpers._ZNetScene = __instance.m_objectDBPrefab.GetComponent<ZNetScene>();
         Helpers._ObjectDB = __instance.m_objectDBPrefab.GetComponent<ObjectDB>();
+        foreach(var clone in Clones) clone.Create();
         foreach(var location in LocationManager.CustomLocation.locations.Values) location.Setup();
         foreach(var blueprint in Blueprints.Values) blueprint.Create();
-        foreach(var clone in Clones) clone.Create();
         foreach(var location in BlueprintLocations.Values) location.Create();
         SoftAssetLoader.AddBlueprintSoftReferences();
     }

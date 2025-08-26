@@ -38,6 +38,9 @@ public class ShipmentManager : MonoBehaviour
     public void Awake()
     {
         instance = this;
+        // can move this like above
+        // was not sure what kind of config sync you like to use
+        // so you have options when to create your custom sync
         ServerSyncedShipments = new CustomSyncedValue<string>(MWL_PortsPlugin.ConfigSync, "MWL_SyncedShipments", "");
         ServerSyncedShipments.ValueChanged += OnClientUpdateShipments;
     }
@@ -61,6 +64,7 @@ public class ShipmentManager : MonoBehaviour
         private static void Postfix(ZNet __instance)
         {
             if (!__instance.IsServer()) return;
+            // read file once world is set, to get the world name
             ReadLocalFile();
         }
     }
@@ -72,6 +76,8 @@ public class ShipmentManager : MonoBehaviour
         private static void Postfix()
         {
             if (instance == null) return;
+            if (!ZNet.instance || !ZNet.instance.IsServer()) return;
+            // only the server should run this
             instance.InitCoroutine();
         }
     }
@@ -80,6 +86,8 @@ public class ShipmentManager : MonoBehaviour
 
     public IEnumerator SendPortsToClients()
     {
+        // only the server runs this operation
+        // runs forever while game is active
         for (;;)
         {
             if (Game.instance && ZDOMan.instance != null && ZNet.instance && ZNet.instance.IsServer())
@@ -102,6 +110,7 @@ public class ShipmentManager : MonoBehaviour
 
     public void CheckTransit(float dt)
     {
+        // everyone runs this
         if (!ZNet.instance) return;
         m_checkTransitTimer += dt;
         if (m_checkTransitTimer < m_checkTransitInterval) return;
@@ -114,7 +123,11 @@ public class ShipmentManager : MonoBehaviour
     public void OnClientUpdateShipments()
     {
         if (ServerSyncedShipments == null) return;
+        // make sure that the server does not do this, since it is principle manager
+        // no need to update twice
         if (!ZNet.instance || ZNet.instance.IsServer()) return;
+        // when the client first connects to the server, and the server has no data
+        // make sure that the value passed is not null
         if (string.IsNullOrEmpty(ServerSyncedShipments.Value)) return;
         Dictionary<string, Shipment>? data = JsonConvert.DeserializeObject<Dictionary<string, Shipment>>(ServerSyncedShipments.Value);
         if (data == null) return;
@@ -123,6 +136,11 @@ public class ShipmentManager : MonoBehaviour
 
     public static HashSet<ZDO> GetPorts()
     {
+        // client side
+        // since we have the server (who is the principle manager of ZDOs) force send the ZDO of our ports
+        // we can now search through our own ZDOMan for the relevant ZDOs
+        // we use this system because we want access to the prefab ZDO
+        // which contains the name, guid, etc... that we saved on it
         List<ZDO> ports = new List<ZDO>();
         foreach (string prefab in PrefabsToSearch)
         {
@@ -131,6 +149,10 @@ public class ShipmentManager : MonoBehaviour
             {
             }
         }
+        // cache the list, so we can use it elsewhere, without needing to iterate
+        // data can be invalid, since prefab might be destroyed
+        // so we only use it in special cases
+        // for our case, to update minimap pins
         TempZDOHashSet = new HashSet<ZDO>(ports);
         return TempZDOHashSet;
     }
@@ -163,6 +185,8 @@ public class ShipmentManager : MonoBehaviour
     {
         if (!ZNet.instance) return;
         if (!Directory.Exists(MWL_FolderPath)) Directory.CreateDirectory(MWL_FolderPath);
+        // use world name as a prefix to the file name
+        // to keep each unique between worlds
         string path = GetFilePath(ZNet.m_world.m_name);
         if (!File.Exists(path)) return;
         string json;
@@ -187,10 +211,13 @@ public class ShipmentManager : MonoBehaviour
     {
         if (ServerSyncedShipments == null) return;
         if (!ZNet.instance || !ZNet.instance.IsServer()) return;
+        // serialize entire dictionary of shipments
         string json = JsonConvert.SerializeObject(Shipments, Formatting.Indented);
+        // share it with all the clients
         ServerSyncedShipments.Value = json;
         if (!Directory.Exists(MWL_FolderPath)) Directory.CreateDirectory(MWL_FolderPath);
         string path = GetFilePath(ZNet.m_world.m_name);
+        // save it on disk
         if (COMPRESS_DATA)
         {
             byte[] rawBytes = Encoding.UTF8.GetBytes(json);
@@ -220,9 +247,12 @@ public class ShipmentManager : MonoBehaviour
 
     public static void RPC_ServerReceiveShipment(long sender, string senderName, string serializedShipment)
     {
-        if (instance == null) return;
+        // client sends a JSON serialized shipment
+        // parse it, add it
+        // share updated dictionary with all clients
+        // save to disk
         Shipment newShipment = new Shipment(serializedShipment);
-        Debug.LogWarning(newShipment.IsValid
+        Debug.Log(newShipment.IsValid // make sure that the shipment is deserialized correctly
             ? $"Shipment from {senderName} registered!"
             : $"Shipment from {senderName} is invalid");
         if (newShipment.IsValid) UpdateShipments();
@@ -230,14 +260,16 @@ public class ShipmentManager : MonoBehaviour
 
     public static void RPC_ServerShipmentCollected(long sender, string senderName, string shipmentID)
     {
-        if (instance == null) return;
+        // when client fully collects delivery
+        // it will automatically send the shipment ID to the server
+        // to remove from dictionary
+        // and update all clients
         if (!Shipments.Remove(shipmentID))
         {
             Debug.LogWarning($"{senderName} said that they collected shipment {shipmentID}, but not found in dictionary");
         }
         else
         {
-            Debug.LogWarning($"{senderName} said collected shipment {shipmentID}, removing from dictionary");
             UpdateShipments();
         }
     }

@@ -22,7 +22,7 @@ public class Blueprint
     public Blueprint(GameObject prefab)
     {
         Prefab = Object.Instantiate(prefab, MWL_PortsPlugin.root.transform, false);
-        Prefab.name = prefab.name;
+        Prefab.name = prefab.name; // so our prefab isn't called MWL_Port_Location(Clone), even though it is! haha
         PrefabManager.Blueprints[Prefab.name] = this;
     }
 
@@ -31,12 +31,14 @@ public class Blueprint
         if (Loaded) return;
         List<GameObject> objectsToDestroy = new();
         List<BlueprintObject> objectsToAdd = new List<BlueprintObject>();
+        // first we get all the children we want to replace
+        // this is a surface search, first layer, not digging into the children of children
         foreach (Transform child in Prefab.transform)
         {
             if (!child.name.StartsWith("MOCK_")) continue;
             if (Helpers.GetPrefab(child.name.Replace("MOCK_", string.Empty)) is not { } original)
             {
-                Debug.LogError($"Prefab {child.name} not found");
+                Debug.LogWarning($"Prefab {child.name} not found, when creating blueprint location: {Prefab.name}");
             }
             else
             {
@@ -44,7 +46,7 @@ public class Blueprint
                 objectsToDestroy.Add(child.gameObject);
             }
         }
-
+        // secondly we add the replacements
         foreach (BlueprintObject? obj in objectsToAdd)
         {
             GameObject clone = Object.Instantiate(obj.Original, Prefab.transform);
@@ -52,13 +54,17 @@ public class Blueprint
             clone.layer = obj.Mock.gameObject.layer;
             clone.transform.SetLocalPositionAndRotation(obj.Mock.localPosition, obj.Mock.localRotation);
         }
-
+        // finally we remove the mocks
         foreach (GameObject? obj in objectsToDestroy)
         { 
             Object.DestroyImmediate(obj);
         }
+        // invoke the on created event so we can uniquely modify prefab after its created
         OnCreated?.Invoke(this);
+        // register to a dictionary to use as reference
         registeredPrefabs[Prefab.name] = Prefab;
+        // make sure it does not run twice during same load
+        // that is, if a player logs in, logs out, logs in
         Loaded = true;
     }
     

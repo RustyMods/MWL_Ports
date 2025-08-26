@@ -25,11 +25,16 @@ public static class LoadPortUI
             Debug.LogWarning("PortUI is null");
             return;
         }
-        
+        // attached it the HUD, so it was independent of the inventory
+        // I prefer the HUD since that rarely gets hidden on me
         GameObject? go = Object.Instantiate(panel, __instance.transform.parent.Find("HUD"));
         go.name = "PortUI";
         go.AddComponent<PortUI>();
         
+        // set all the relevant assets now that we have access to the prefab that we want to target
+        // in this case, crafting panel
+        // we could technically do this sooner, since the ingame gui is attached the _GameMain
+        // but no benefit, since no one is looking at our UI before they entire world
         var panelTexts = go.GetComponentsInChildren<Text>(true);
         var listItemTexts = PortUI.ListItem.GetComponentsInChildren<Text>(true);
 
@@ -252,7 +257,7 @@ public class PortUI : MonoBehaviour
                 break;
             case TabOption.Delivery:
                 if (m_selectedDelivery == null) return;
-                m_currentPort.SetContainersVisible(m_currentPort.LoadContainers(m_selectedDelivery.ShipmentID));
+                m_currentPort.SetContainersVisible(m_currentPort.LoadDelivery(m_selectedDelivery.ShipmentID));
                 break;
         }
     }

@@ -20,6 +20,8 @@ public class Shipment
     public List<ShipmentItem> Items = new List<ShipmentItem>();
 
     [NonSerialized] public bool IsValid = true;
+    
+    // used by port to format data, then adds items, then calls SendToServer()
     public Shipment(ShipmentManager.PortID originPort, ShipmentManager.PortID destinationPort)
     {
         OriginPortName = originPort.Name;
@@ -30,6 +32,7 @@ public class Shipment
         ArrivalTime = ZNet.instance.GetTimeSeconds() + ShipmentManager.TransitDurationConfig.Value;
     }
 
+    // used when receiving shipment from client
     public Shipment(string serializedShipment)
     {
         if (ShipmentManager.instance == null) return;
@@ -73,24 +76,27 @@ public class Shipment
         if (ShipmentManager.instance == null) return;
         if (ZNet.instance && ZNet.instance.IsServer())
         {
+            // if local client is server, simply remove from dictionary
             if (!ShipmentManager.Shipments.Remove(ShipmentID))
             {
                 Debug.LogWarning($"{Player.m_localPlayer.GetPlayerName()} said that they collected shipment {ShipmentID}, but not found in dictionary");
             }
             else
             {
-                Debug.LogWarning($"{Player.m_localPlayer.GetPlayerName()} said collected shipment {ShipmentID}, removing from dictionary");
                 ShipmentManager.UpdateShipments();
             }
         }
         else
         {
+            // else send shipment ID to server to manage
             ZRoutedRpc.instance.InvokeRoutedRPC(nameof(ShipmentManager.RPC_ServerShipmentCollected), Player.m_localPlayer.GetPlayerName(), ShipmentID);
         }
     }
 
     public void CheckTransit()
     {
+        // server shares data with all clients
+        // then all clients manages shipment timers
         State = ZNet.instance.GetTimeSeconds() < ArrivalTime ? ShipmentState.InTransit : ShipmentState.Delivered;
     }
 
