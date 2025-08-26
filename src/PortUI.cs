@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using BepInEx.Configuration;
@@ -120,6 +121,8 @@ public class PortUI : MonoBehaviour
     private readonly List<Tab> m_tabs = new();
     private TabOption m_currentTab = TabOption.Ports;
 
+    private Action<float>? OnUpdate;
+
     private enum TabOption
     {
         Ports, Shipments, Delivery
@@ -152,13 +155,18 @@ public class PortUI : MonoBehaviour
 
     public void Update()
     {
+        OnUpdate?.Invoke(Time.deltaTime);
         if (!ZInput.GetKeyDown(KeyCode.Escape) && !ZInput.GetKeyDown(KeyCode.Tab)) return;
         Hide();
     }
     
     public static bool IsVisible() => instance != null && instance.gameObject.activeInHierarchy;
 
-    public void Hide() => gameObject.SetActive(false);
+    public void Hide()
+    {
+        gameObject.SetActive(false);
+        OnUpdate = null;
+    }
 
     public void SetTopic(string topic) => Topic.text = Localization.instance.Localize(topic);
     
@@ -171,8 +179,16 @@ public class PortUI : MonoBehaviour
         gameObject.SetActive(true);
         PortTab.SetSelected(true);
         SetTopic(m_currentPort.m_name);
-        Description.SetBodyText("");
-        OnPortTab();
+        Description.Reset();
+        m_currentTab = TabOption.Ports;
+        PortTab.SetSelected(true);
+        LoadPorts();
+        SetMainButtonText("Exit");
+        m_selectedDestination = null;
+        m_selectedShipment = null;
+        Description.Reset();
+        MainButton.interactable = true;
+        OnUpdate = null;
     }
 
     public void OnPortTab()
@@ -186,6 +202,7 @@ public class PortUI : MonoBehaviour
         m_selectedShipment = null;
         Description.Reset();
         MainButton.interactable = true;
+        OnUpdate = null;
     }
 
     public void OnShipmentTab()
@@ -199,6 +216,7 @@ public class PortUI : MonoBehaviour
         m_selectedDestination = null;
         m_selectedShipment = null;
         MainButton.interactable = true;
+        OnUpdate = null;
     }
 
     public void OnDeliveryTab()
@@ -212,6 +230,7 @@ public class PortUI : MonoBehaviour
         Description.Reset();
         m_selectedDestination = null;
         m_selectedShipment = null;
+        OnUpdate = null;
     }
 
     public void OnMainButton()
@@ -223,6 +242,7 @@ public class PortUI : MonoBehaviour
                 if (m_selectedDestination != null)
                 {
                     var result = m_currentPort.SendShipment(m_selectedDestination.Value);
+                    if (!result) Debug.LogWarning("Failed to send shipment, are containers empty ??");
                     m_selectedDestination = null;
                 }
                 else Hide();
@@ -272,26 +292,16 @@ public class PortUI : MonoBehaviour
     public void AddDelivery(Shipment shipment)
     {
         TempListItem item = new TempListItem(Instantiate(ListItem, LeftPanelRoot));
-        item.SetIcon(false);
-        item.SetLabel(shipment.DestinationPortName);
+        item.SetIcon(shipment.GetIcon(), Color.white);
+        item.SetLabel(shipment.OriginPortName);
         item.SetButton(() =>
         {
             item.SetSelected(true);
             m_selectedDelivery = shipment;
             Description.SetName(shipment.OriginPortName);
-            StringBuilder stringBuilder = new();
-            stringBuilder.Append($"Origin Port: {shipment.OriginPortName}");
-            stringBuilder.Append($"\nDestination Port:  {shipment.DestinationPortName}");
-            stringBuilder.Append($"\nState: {shipment.State}\n");
-            foreach (ShipmentItem? shipmentItem in shipment.Items)
-            {
-                if (ObjectDB.instance.GetItemPrefab(shipmentItem.ItemName) is not { } itemPrefab ||
-                    !itemPrefab.TryGetComponent(out ItemDrop component)) continue;
-                stringBuilder.Append($"\n{component.m_itemData.m_shared.m_name}");
-                if (shipmentItem.Stack > 1) stringBuilder.Append($" x{shipmentItem.Stack}");
-            }
-            Description.SetBodyText(stringBuilder.ToString());
+            Description.SetBodyText(shipment.GetTooltip());
             MainButton.interactable = true;
+            OnUpdate = null;
         });
         m_tempListItems.Add(item);
     }
@@ -299,25 +309,15 @@ public class PortUI : MonoBehaviour
     public void AddShipment(Shipment shipment)
     {
         TempListItem item = new TempListItem(Instantiate(ListItem, LeftPanelRoot));
-        item.SetIcon(false);
+        item.SetIcon(shipment.GetIcon(), Color.white);
         item.SetLabel(shipment.DestinationPortName);
         item.SetButton(() =>
         {
             item.SetSelected(true);
             m_selectedShipment = shipment;
             Description.SetName(shipment.DestinationPortName);
-            StringBuilder stringBuilder = new();
-            stringBuilder.Append($"Origin Port: {shipment.OriginPortName}");
-            stringBuilder.Append($"\nDestination Port:  {shipment.DestinationPortName}");
-            stringBuilder.Append($"\nState: {shipment.State}\n");
-            foreach (ShipmentItem? shipmentItem in shipment.Items)
-            {
-                if (ObjectDB.instance.GetItemPrefab(shipmentItem.ItemName) is not { } itemPrefab ||
-                    !itemPrefab.TryGetComponent(out ItemDrop component)) continue;
-                stringBuilder.Append($"\n{component.m_itemData.m_shared.m_name}");
-                if (shipmentItem.Stack > 1) stringBuilder.Append($" x{shipmentItem.Stack}");
-            }
-            Description.SetBodyText(stringBuilder.ToString());
+            Description.SetBodyText(shipment.GetTooltip());
+            OnUpdate = null;
         });
         m_tempListItems.Add(item);
     }
@@ -329,34 +329,35 @@ public class PortUI : MonoBehaviour
         Port.PortInfo info = new Port.PortInfo(port);
         if (string.IsNullOrEmpty(info.name)) return;
         TempListItem item = new TempListItem(Instantiate(ListItem, LeftPanelRoot));
-        item.SetIcon(false);
+        item.SetIcon(Minimap.instance.GetLocationIcon("MWL_Port_Location"), Color.white);
         item.SetLabel($"{info.name}");
         item.SetButton(() =>
         {
             item.SetSelected(true);
             m_selectedDestination = new ShipmentManager.PortID(info.guid, info.name);
-            Description.SetName($"{info.name} ({info.GetDistance(Player.m_localPlayer):0})");
+            Description.SetName($"<color=orange>{info.name}</color> ({(int)info.GetDistance(Player.m_localPlayer)}m)");
+            Description.SetBodyText(info.GetTooltip());
             SetMainButtonText("Send Shipment");
+            float timer = 0f;
+            OnUpdate = dt =>
+            {
+                timer += dt;
+                if (timer <= 1f) return;
+                timer = 0.0f;
+                Description.SetBodyText(info.GetTooltip());
+            };
         });
         m_tempListItems.Add(item);
     }
 
-    public void OnSelectDelivery(string shipmentID)
-    {
-        if (m_currentPort == null) return;
-        bool hasItems = m_currentPort.LoadContainers(shipmentID);
-        m_currentPort.SetContainersVisible(hasItems);
-    }
-
     private class TempListItem
     {
-        public readonly GameObject? Prefab;
-        public readonly Button? Button;
-        public readonly Image? Icon;
-        public readonly Text? Label;
-        public readonly GameObject? Selected;
-        
-        public bool IsSelected => Selected != null && Selected.activeInHierarchy;
+        private readonly GameObject? Prefab;
+        private readonly Button? Button;
+        private readonly Image? Icon;
+        private readonly Text? Label;
+        private readonly GameObject? Selected;
+        private bool IsSelected => Selected != null && Selected.activeInHierarchy;
 
         public TempListItem(GameObject prefab)
         {
@@ -373,11 +374,17 @@ public class PortUI : MonoBehaviour
             Label.text = Localization.instance.Localize(label);
         }
 
-        public void SetIcon(Sprite sprite, Color color)
+        public void SetIcon(Sprite? sprite, Color color)
         {
-            if (Icon == null) return;
-            Icon.sprite = sprite;
-            Icon.color = color;
+            if (Icon == null)
+            {
+                SetIcon(false);
+            }
+            else
+            {
+                Icon.sprite = sprite;
+                Icon.color = color;
+            }
         }
 
         public void SetIcon(bool enable)
@@ -413,10 +420,10 @@ public class PortUI : MonoBehaviour
     
     private class Tab
     {
-        public readonly Button Button;
-        public readonly Text Label;
-        public readonly GameObject Selected;
-        public readonly Text SelectedLabel;
+        private readonly Button Button;
+        private readonly Text Label;
+        private readonly GameObject Selected;
+        private readonly Text SelectedLabel;
         public bool IsSelected => Selected.activeInHierarchy;
 
         public Tab(Transform transform)
@@ -443,7 +450,7 @@ public class PortUI : MonoBehaviour
         }
     }
 
-    public class RightPanel
+    private class RightPanel
     {
         private readonly Text Name;
         private readonly Text BodyText;

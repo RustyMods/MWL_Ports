@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using JetBrains.Annotations;
 using Newtonsoft.Json;
 using UnityEngine;
@@ -92,26 +93,63 @@ public class Shipment
     {
         State = ZNet.instance.GetTimeSeconds() < ArrivalTime ? ShipmentState.InTransit : ShipmentState.Delivered;
     }
+
+    public double GetTimeToArrivalSeconds()
+    {
+        return Math.Max(ArrivalTime - ZNet.instance.GetTimeSeconds(), 0);
+    }
+    
+    public string FormatTimeToArrival()
+    {
+        double totalSeconds = GetTimeToArrivalSeconds();
+        if (totalSeconds < 0) totalSeconds = 0;
+
+        int hours   = (int)(totalSeconds / 3600);
+        int minutes = (int)((totalSeconds % 3600) / 60);
+        int seconds = (int)(totalSeconds % 60);
+
+        var parts = new List<string>();
+
+        if (hours > 0)   parts.Add($"{hours}h");
+        if (minutes > 0) parts.Add($"{minutes}m");
+        if (seconds > 0) parts.Add($"{seconds}s");
+
+        return string.Join(" ", parts);
+    }
     
     public string ToJson() => JsonConvert.SerializeObject(this);
 
+    public Sprite? GetIcon() => Minimap.instance.GetLocationIcon("MWL_Port_Location");
+    
     public string GetTooltip()
     {
-
-        return "";
+        StringBuilder stringBuilder = new();
+        stringBuilder.Append($"Origin Port: <color=orange>{OriginPortName}</color>");
+        stringBuilder.Append($"\nDestination Port:  <color=orange>{DestinationPortName}</color>");
+        stringBuilder.Append($"\nState: <color=yellow>{State}</color>\n");
+        stringBuilder.Append("\nItems: ");
+        foreach (ShipmentItem? shipmentItem in Items)
+        {
+            if (ObjectDB.instance.GetItemPrefab(shipmentItem.ItemName) is not { } itemPrefab || !itemPrefab.TryGetComponent(out ItemDrop component)) continue;
+            stringBuilder.Append($"\n<color=orange>{component.m_itemData.m_shared.m_name}</color>");
+            if (shipmentItem.Stack > 1) stringBuilder.Append($" x{shipmentItem.Stack}");
+        }
+        return stringBuilder.ToString();
     }
 
     public List<string> LogPrint()
     {
-        List<string> log = new List<string>();
-        log.Add("OriginPortName: " + OriginPortName);
-        log.Add("DestinationPortName: " + DestinationPortName);
-        log.Add("OriginPortID: " + OriginPortID);
-        log.Add("DestinationPortID: " + DestinationPortID);
-        log.Add("ShipmentID: " + ShipmentID);
-        log.Add("State: " + State);
-        log.Add("ArrivalTime: " + ArrivalTime);
-        log.Add("Items.Count: " + Items.Count);
+        List<string> log = new List<string>
+        {
+            "Origin Port Name:      " + OriginPortName,
+            "Destination Port Name: " + DestinationPortName,
+            "Origin Port ID:        " + OriginPortID,
+            "Destination Port ID:   " + DestinationPortID,
+            "Shipment ID:           " + ShipmentID,
+            "State:                 " + State,
+            "Arrival Time:          " + ArrivalTime,
+            "Items Count:           " + Items.Count
+        };
         return log;
     }
 }

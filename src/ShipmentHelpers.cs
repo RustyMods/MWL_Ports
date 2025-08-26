@@ -52,6 +52,7 @@ public static class ShipmentHelpers
             toImage.sprite = fromImage.sprite;
             toImage.material = fromImage.material;
             toImage.color = fromImage.color;
+            toImage.type = fromImage.type;
         }
         catch
         {

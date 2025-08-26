@@ -18,7 +18,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
     public bool m_containersActive;
     public bool m_containersAreEmpty = true;
     public string? m_selectedDelivery;
-
+    public Humanoid? m_currentHumanoid;
     public static readonly List<ShipmentItem> m_tempItems = new();
     public void Awake()
     {
@@ -75,6 +75,10 @@ public class Port : MonoBehaviour, Interactable, Hoverable
 
             m_view.GetZDO().Set(PortVars.Items, pkg.GetBase64());
         }
+        else
+        {
+            m_view.GetZDO().Set(PortVars.Items, "");
+        }
     }
 
     public void LoadSavedItems()
@@ -110,7 +114,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         {
             Container container = temp.Spawn();
             ++count;
-            var newName = container.name.Replace("Clone", count.ToString());
+            string newName = container.name.Replace("Clone", count.ToString());
             container.name = newName;
             m_containers.Add(newName, container);
             container.GetInventory().m_onChanged = CheckContainers;
@@ -152,6 +156,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         m_deliveries.Remove(m_selectedDelivery);
         m_selectedDelivery = null;
         currentDelivery.OnCollected();
+        if (m_currentHumanoid != null) m_currentHumanoid.Message(MessageHud.MessageType.Center, "Selected delivery marked as collected!");
     }
     
     public bool Interact(Humanoid user, bool hold, bool alt)
@@ -159,6 +164,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         if (PortUI.instance == null) return false;
         GetDeliveries();
         PortUI.instance.Show(this);
+        m_currentHumanoid = user;
         return false;
     }
 
@@ -224,6 +230,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         shipment.SendToServer();
         containers.EmptyAll();
         m_view.GetZDO().Set(PortVars.Items, "");
+        if (m_currentHumanoid != null) m_currentHumanoid.Message(MessageHud.MessageType.Center, "Successfully sent shipment!");
         return true;
     }
 
@@ -253,15 +260,39 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         public readonly string name;
         public readonly string guid;
         public Vector3 position;
+        public readonly List<Shipment> deliveries;
+        public readonly List<Shipment> shipments;
+
+        private static readonly StringBuilder sb = new StringBuilder();
 
         public PortInfo(ZDO zdo)
         {
             name = zdo.GetString(PortVars.Name);
             guid = zdo.GetString(PortVars.Guid);
             position = zdo.GetPosition();
+            deliveries = ShipmentManager.GetDeliveries(guid);
+            shipments = ShipmentManager.GetShipments(guid);
         }
         
         public float GetDistance(Player player) => Vector3.Distance(player.transform.position, position);
+
+        public string GetTooltip()
+        {
+            sb.Clear();
+            sb.Append($"Deliveries (<color=yellow>{deliveries.Count}</color>): ");
+            foreach (Shipment? delivery in deliveries)
+            {
+                var time = delivery.FormatTimeToArrival();
+                sb.AppendFormat("\nOrigin: <color=orange>{0}</color> (<color=yellow>{1}</color>{2})", delivery.OriginPortName, delivery.State, string.IsNullOrEmpty(time) ? "" : $", {time}");
+            }
+            sb.Append($"\n\nShipments (<color=yellow>{shipments.Count}</color>): ");
+            foreach (Shipment? shipment in shipments)
+            {
+                var time = shipment.FormatTimeToArrival();
+                sb.AppendFormat("\nDestination: <color=orange>{0}</color> (<color=yellow>{1}</color>{2})", shipment.DestinationPortName, shipment.State, string.IsNullOrEmpty(time) ? "" : $", {time}");
+            }
+            return sb.ToString();
+        }
     }
 
     public static class PortVars

@@ -1,8 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection;
 using BepInEx;
 using HarmonyLib;
 using JetBrains.Annotations;
@@ -16,7 +14,7 @@ namespace MWL_Ports;
 public class ShipmentManager : MonoBehaviour
 {
     public static ShipmentManager? instance;
-    internal static double TransitDuration = 10.0;
+    internal static double TransitDuration = 1800.0; // 1 day in-game, so 30min
     private static string ShipmentFileName = "shipments.json";
     private static string MWL_FolderName = "MWL_Ports";
     private static string MWL_FolderPath = Paths.ConfigPath + Path.DirectorySeparatorChar + MWL_FolderName;
