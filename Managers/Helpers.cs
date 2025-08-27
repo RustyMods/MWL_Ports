@@ -43,9 +43,14 @@ public static class Helpers
         Object.DestroyImmediate(component);
     }
 
-    public static void RemoveAllComponents<T>(this GameObject go, params Type[] ignoreComponents) where T : MonoBehaviour
+    public static void RemoveAllComponents<T>(this GameObject go, bool includeChildren = false, params Type[] ignoreComponents) where T : MonoBehaviour
     {
-        foreach (T component in go.GetComponents<T>())
+        List<T> components = go.GetComponents<T>().ToList();
+        if (includeChildren)
+        {
+            components.AddRange(go.GetComponentsInChildren<T>(true));
+        }
+        foreach (T component in components)
         {
             if (ignoreComponents.Contains(component.GetType())) continue;
             Object.DestroyImmediate(component);

@@ -67,7 +67,7 @@ public class Shipment
         else
         {
             // else send data to server to manage
-            ZRoutedRpc.instance.InvokeRoutedRPC(nameof(ShipmentManager.RPC_ServerReceiveShipment), Player.m_localPlayer.GetPlayerName(), ToJson());
+            ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.instance.GetServerPeerID(), nameof(ShipmentManager.RPC_ServerReceiveShipment), Player.m_localPlayer.GetPlayerName(), ToJson());
         }
     }
 
@@ -89,7 +89,7 @@ public class Shipment
         else
         {
             // else send shipment ID to server to manage
-            ZRoutedRpc.instance.InvokeRoutedRPC(nameof(ShipmentManager.RPC_ServerShipmentCollected), Player.m_localPlayer.GetPlayerName(), ShipmentID);
+            ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.instance.GetServerPeerID(), nameof(ShipmentManager.RPC_ServerShipmentCollected), Player.m_localPlayer.GetPlayerName(), ShipmentID);
         }
     }
 
@@ -196,6 +196,11 @@ public class ShipmentItem
         CustomData = item.m_customData;
     }
 
+    /// <summary>
+    /// figure out why consume items actually show...
+    /// <see cref="Humanoid.ConsumeItem"/>
+    /// </summary>
+    /// <returns></returns>
     public ItemDrop.ItemData? GetItemData()
     {
         if (ObjectDB.instance.GetItemPrefab(ItemName) is not { } itemPrefab)
@@ -217,7 +222,8 @@ public class ShipmentItem
             itemData.m_crafterID = CrafterID;
             itemData.m_crafterName = CrafterName;
             itemData.m_customData = CustomData;
-
+            
+            // TODO: figure out why shared data is valid ????
             return itemData;
         }
 

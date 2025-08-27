@@ -38,7 +38,7 @@ public class Blueprint
             if (!child.name.StartsWith("MOCK_")) continue;
             if (Helpers.GetPrefab(child.name.Replace("MOCK_", string.Empty)) is not { } original)
             {
-                Debug.LogWarning($"Prefab {child.name} not found, when creating blueprint location: {Prefab.name}");
+                Debug.LogWarning($"Prefab {child.name} not found, when creating blueprint: {Prefab.name}");
             }
             else
             {

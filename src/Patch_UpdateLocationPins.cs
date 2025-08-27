@@ -56,7 +56,7 @@ public static class Minimap_UpdateLocationPins_Patch
             Sprite? locationIcon = __instance.GetLocationIcon(locationName);
             if (locationIcon != null)
             {
-                bool IsPort = locationName == "MWL_Port_Location";
+                bool IsPort = locationName is "MWL_Port_Location" or "MWL_Port_Location_Large";
                 Minimap.PinData? pinData = __instance.AddPin(keyValuePair.Key, Minimap.PinType.None, IsPort ? portName : "", false, false);
                 pinData.m_icon = locationIcon;
                 if (IsPort)

@@ -44,7 +44,7 @@ namespace MWL_Ports
             
             // make shipment manager a monobehavior to keep functions within it's scope while taking advantages of monobehaviors
             gameObject.AddComponent<ShipmentManager>();
-            ShipmentManager.PrefabsToSearch.Add("MWL_Port"); // add port variants to search for
+            ShipmentManager.PrefabsToSearch.Add("MWL_Port", "MWL_PortTrader"); // add port variants to search for
             // this is used by server to iterate through ZDOs and send them to players
             // this is how portals work
 
@@ -62,7 +62,7 @@ namespace MWL_Ports
                 blueprint.Location.Biome = Heightmap.Biome.All;
                 blueprint.Location.Placement.Altitude.Min = 10f;
                 blueprint.Location.Placement.ClearArea = true;
-                blueprint.Location.Placement.Quantity = 200;
+                blueprint.Location.Placement.Quantity = 100;
                 blueprint.Location.Placement.Prioritized = true;
                 blueprint.Location.Group.Name = "MWL_Ports";
                 blueprint.Location.Placement.DistanceFromSimilar.Min = 300f;
@@ -81,7 +81,37 @@ namespace MWL_Ports
                 foreach (Transform child in blueprint.Prefab.transform)
                 {
                     if (child.gameObject.HasComponent<TerrainModifier>()) continue;
-                    child.gameObject.RemoveAllComponents<MonoBehaviour>(typeof(SnapToGround));
+                    child.gameObject.RemoveAllComponents<MonoBehaviour>(false, typeof(SnapToGround));
+                }
+                
+                PrefabManager.RegisterPrefab(blueprint.Prefab);
+            };
+            
+            BlueprintLocation large = new BlueprintLocation("portbundle", "MWL_Port_Location_Large");
+            large.OnCreated += blueprint =>
+            {
+                if (blueprint.Location == null) return;
+                blueprint.Location.Setup();
+                blueprint.Location.Biome = Heightmap.Biome.All;
+                blueprint.Location.Placement.Altitude.Min = 0f;
+                blueprint.Location.Placement.Altitude.Max = 60f;
+                blueprint.Location.Placement.ClearArea = true;
+                blueprint.Location.Placement.Quantity = 100;
+                blueprint.Location.Placement.Prioritized = true;
+                blueprint.Location.Group.Name = "MWL_Ports";
+                blueprint.Location.Placement.DistanceFromSimilar.Min = 300f;
+                blueprint.Location.Icon.Enabled = true;
+                // blueprint.Location.Icon.Icon = MySprite ----> if you want to use a custom sprite
+                blueprint.Location.Icon.InGameIcon = LocationManager.IconSettings.LocationIcon.Boss;
+            };
+            
+            Blueprint portTrader = new Blueprint("portbundle", "MWL_PortTrader");
+            portTrader.Prefab.AddComponent<Port>();
+            portTrader.OnCreated += blueprint =>
+            {
+                foreach (Transform child in blueprint.Prefab.transform)
+                {
+                    child.gameObject.RemoveAllComponents<MonoBehaviour>();
                 }
                 
                 PrefabManager.RegisterPrefab(blueprint.Prefab);

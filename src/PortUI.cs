@@ -34,7 +34,7 @@ public static class LoadPortUI
         // set all the relevant assets now that we have access to the prefab that we want to target
         // in this case, crafting panel
         // we could technically do this sooner, since the ingame gui is attached the _GameMain
-        // but no benefit, since no one is looking at our UI before they entire world
+        // but no benefit, since no one is looking at our UI before they enter world
         var panelTexts = go.GetComponentsInChildren<Text>(true);
         var listItemTexts = PortUI.ListItem.GetComponentsInChildren<Text>(true);
 
@@ -518,7 +518,7 @@ public class PortUI : MonoBehaviour
         
             TextGenerator textGen = text.cachedTextGenerator;
         
-            var settings = text.GetGenerationSettings(rect.rect.size);
+            TextGenerationSettings settings = text.GetGenerationSettings(rect.rect.size);
             float preferredHeight = textGen.GetPreferredHeight(text.text, settings);
         
             return preferredHeight;

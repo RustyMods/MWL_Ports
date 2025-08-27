@@ -145,6 +145,7 @@
         <Compile Include="src\PortNames.cs" />
         <Compile Include="src\PortUI.cs" />
         <Compile Include="src\Shipment.cs" />
+        <Compile Include="src\ShipmentCost.cs" />
         <Compile Include="src\ShipmentHelpers.cs" />
         <Compile Include="src\ShipmentManager.cs" />
         <Compile Include="VersionHandshake.cs"/>
