@@ -16,15 +16,15 @@ public class Manifest
     public string RequiredDefeatKey = "";
 
     public bool IsPurchased;
-    private StringBuilder sb = new StringBuilder();
+    private static StringBuilder sb = new StringBuilder();
 
-    private string _creatureName = "";
+    private string _creatureName = string.Empty;
     private string CreatureName
     {
         get
         {
-            if (!string.IsNullOrEmpty(_creatureName) || !DefeatKeyToCreatureMap.TryGetValue(RequiredDefeatKey, out string? sharedName)) return _creatureName;
-            _creatureName = sharedName;
+            if (string.IsNullOrEmpty(_creatureName) && DefeatKeyToCreatureMap.TryGetValue(RequiredDefeatKey, out var sharedName))
+                _creatureName = sharedName ?? string.Empty;
             return _creatureName;
         }
     }
@@ -81,9 +81,9 @@ public class Manifest
         }
     }
     
-    public class Requirement
+    public record struct Requirement
     {
-        public ItemDrop.ItemData Item = null!;
+        public ItemDrop.ItemData Item;
         public int Amount;
     }
 }

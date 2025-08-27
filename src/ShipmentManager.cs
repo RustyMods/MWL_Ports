@@ -31,9 +31,10 @@ public class ShipmentManager : MonoBehaviour
     private static HashSet<ZDO> TempZDOHashSet = new(); // client side
     public static readonly List<string> PrefabsToSearch = new();
     
+    private WaitForSeconds _wait = new WaitForSeconds(10f);
+    private Coroutine? _sendZDOCoroutine;
     private float m_checkTransitTimer;
     private float m_checkTransitInterval = 1f;
-    private float m_sendPortsInterval = 10f;
 
     public void Awake()
     {
@@ -55,6 +56,7 @@ public class ShipmentManager : MonoBehaviour
     {
         // clean up if destroyed for some reason
         instance = null;
+        if (_sendZDOCoroutine != null) StopCoroutine(_sendZDOCoroutine);
     }
 
     [HarmonyPatch(typeof(ZNet), nameof(ZNet.Awake))]
@@ -81,14 +83,17 @@ public class ShipmentManager : MonoBehaviour
             instance.InitCoroutine();
         }
     }
-    
-    public void InitCoroutine() => StartCoroutine(SendPortsToClients());
+    public void InitCoroutine()
+    {
+        _sendZDOCoroutine = StartCoroutine(SendPortsToClients());
+    }
 
     public IEnumerator SendPortsToClients()
     {
         // only the server runs this operation
         // runs forever while game is active
-        for (;;)
+        // if you have over 2000 ports in the world, we might want to batch
+        while (true)
         {
             if (Game.instance && ZDOMan.instance != null && ZNet.instance && ZNet.instance.IsServer())
             {
@@ -104,7 +109,8 @@ public class ShipmentManager : MonoBehaviour
                     ZDOMan.instance.ForceSendZDO(zdo.m_uid);
                 }
             }
-            yield return new WaitForSeconds(m_sendPortsInterval);
+
+            yield return _wait;
         }
     }
 

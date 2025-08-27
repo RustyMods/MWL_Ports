@@ -43,18 +43,21 @@ public static class PortNames
 
     public static string GetRandomName()
     {
-        string token = "";
-        while (string.IsNullOrEmpty(token))
+        if (UsedTokens.Count >= Tokens.Count)
         {
-            if (UsedTokens.Count >= Tokens.Count)
-            {
-                UsedTokens.Clear();
-            }
-            string? randomToken = Tokens.Keys.ToList()[UnityEngine.Random.Range(0, Tokens.Count)];
-            if (UsedTokens.Contains(randomToken)) continue;
-            token = randomToken;
-            UsedTokens.Add(token);
+            UsedTokens.Clear();
         }
+
+        List<string> availableTokens = Tokens.Keys.Where(t => !UsedTokens.Contains(t)).ToList();
+
+        if (availableTokens.Count == 0)
+        {
+            return "Port";
+        }
+
+        string token = availableTokens[UnityEngine.Random.Range(0, availableTokens.Count)];
+        UsedTokens.Add(token);
         return token;
     }
+
 }
