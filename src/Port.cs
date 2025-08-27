@@ -239,14 +239,16 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         }
         foreach (ShipmentItem item in items)
         {
-            if (item.GetItemData() is not { } itemData) continue;
             if (!m_containers.TryGetValue(item.ChestID, out Container container))
             {
                 Debug.LogWarning("Failed to find container: " + item.ChestID);
             }
             else
             {
-                container.GetInventory().AddItem(itemData);
+                if (!item.AddItem(container))
+                {
+                    Debug.LogWarning("Failed to add item: " + item.ItemName);
+                }
             }
         }
         // reset CheckContainers()

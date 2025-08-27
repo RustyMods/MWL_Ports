@@ -195,39 +195,18 @@ public class ShipmentItem
         CrafterName = item.m_crafterName;
         CustomData = item.m_customData;
     }
-
-    /// <summary>
-    /// figure out why consume items actually show...
-    /// <see cref="Humanoid.ConsumeItem"/>
-    /// </summary>
-    /// <returns></returns>
-    public ItemDrop.ItemData? GetItemData()
+    public bool AddItem(Container container)
     {
         if (ObjectDB.instance.GetItemPrefab(ItemName) is not { } itemPrefab)
         {
             Debug.LogWarning("Failed to find item: " + ItemName);
+            return false;
         }
-        else if (!itemPrefab.TryGetComponent(out ItemDrop itemDrop))
-        {
-            Debug.LogWarning(itemPrefab.name + " missing ItemDrop !!");
-        }
-        else
-        {
-            ItemDrop.ItemData itemData = itemDrop.m_itemData.Clone();
-            itemData.m_dropPrefab = itemPrefab;
-            itemData.m_stack = Stack;
-            itemData.m_quality = Quality;
-            itemData.m_durability = Durability;
-            itemData.m_variant = Variant;
-            itemData.m_crafterID = CrafterID;
-            itemData.m_crafterName = CrafterName;
-            itemData.m_customData = CustomData;
-            
-            // TODO: figure out why shared data is valid ????
-            return itemData;
-        }
-
-        return null;
+        ItemDrop.ItemData? item = container.GetInventory().AddItem(itemPrefab.name, Stack, Quality, Variant, CrafterID, CrafterName);
+        if (item == null) return false;
+        item.m_durability = Durability;
+        item.m_customData = CustomData;
+        return true;
     }
     
     public ShipmentItem(ZPackage pkg)
