@@ -22,21 +22,26 @@ public class Shipment
     [NonSerialized] public bool IsValid = true;
     
     // used by port to format data, then adds items, then calls SendToServer()
-    public Shipment(ShipmentManager.PortID originPort, ShipmentManager.PortID destinationPort)
+    public Shipment(ShipmentManager.PortID originPort, ShipmentManager.PortID destinationPort, float distance)
     {
         OriginPortName = originPort.Name;
         OriginPortID = originPort.Guid;
         DestinationPortID = destinationPort.Guid;
         DestinationPortName = destinationPort.Name;
         ShipmentID = Guid.NewGuid().ToString();
-        ArrivalTime = ZNet.instance.GetTimeSeconds() + ShipmentManager.TransitDurationConfig.Value;
+        ArrivalTime = ZNet.instance.GetTimeSeconds() + CalculateDistanceTime(distance);
+    }
+
+    public static double CalculateDistanceTime(float distance)
+    {
+        return ShipmentManager.TransitDurationConfig.Value * distance;
     }
 
     // used when receiving shipment from client
     public Shipment(string serializedShipment)
     {
         if (ShipmentManager.instance == null) return;
-        var data = JsonConvert.DeserializeObject<Shipment>(serializedShipment);
+        Shipment? data = JsonConvert.DeserializeObject<Shipment>(serializedShipment);
         if (data == null)
         {
             Debug.LogWarning("[SERVER] Failed to parse shipment JSON");
@@ -49,7 +54,7 @@ public class Shipment
         DestinationPortID = data.DestinationPortID;
         ShipmentID = data.ShipmentID;
         State = data.State;
-        ArrivalTime = ZNet.instance.GetTimeSeconds() + ShipmentManager.TransitDurationConfig.Value;
+        ArrivalTime = data.ArrivalTime;
         Items = data.Items;
         ShipmentManager.Shipments[ShipmentID] = this;
         ShipmentManager.UpdateShipments();
@@ -105,9 +110,8 @@ public class Shipment
         return Math.Max(ArrivalTime - ZNet.instance.GetTimeSeconds(), 0);
     }
     
-    public string FormatTimeToArrival()
+    public static string FormatTime(double totalSeconds)
     {
-        double totalSeconds = GetTimeToArrivalSeconds();
         if (totalSeconds < 0) totalSeconds = 0;
 
         int hours   = (int)(totalSeconds / 3600);
@@ -124,12 +128,10 @@ public class Shipment
     }
     
     public string ToJson() => JsonConvert.SerializeObject(this);
-
-    public Sprite? GetIcon() => Minimap.instance.GetLocationIcon("MWL_Port_Location");
     
     public string GetTooltip()
     {
-        string time = FormatTimeToArrival();
+        string time = FormatTime(GetTimeToArrivalSeconds());
         StringBuilder stringBuilder = new();
         stringBuilder.Append($"Origin Port: <color=orange>{OriginPortName}</color>");
         stringBuilder.Append($"\nDestination Port:  <color=orange>{DestinationPortName}</color>");
@@ -173,8 +175,7 @@ public enum ShipmentState
 [Serializable][PublicAPI][JsonObject(MemberSerialization.Fields)]
 public class ShipmentItem
 {
-    public string? ManifestName;
-    public string ChestID;
+    public string ManifestName;
     public string ItemName;
     public int Stack;
     public float Durability;
@@ -186,7 +187,7 @@ public class ShipmentItem
 
     public ShipmentItem(string chestID, ItemDrop.ItemData item)
     {
-        ChestID = chestID;
+        ManifestName = chestID;
         ItemName = item.m_dropPrefab.name;
         Stack = item.m_stack;
         Durability = item.m_durability;
@@ -214,7 +215,7 @@ public class ShipmentItem
     
     public ShipmentItem(ZPackage pkg)
     {
-        ChestID = pkg.ReadString();
+        ManifestName = pkg.ReadString();
         ItemName = pkg.ReadString();
         Stack = pkg.ReadInt();
         Durability = (float)pkg.ReadDouble();
@@ -233,7 +234,7 @@ public class ShipmentItem
 
     public void Write(ZPackage pkg)
     {
-        pkg.Write(ChestID);
+        pkg.Write(ManifestName);
         pkg.Write(ItemName);
         pkg.Write(Stack);
         pkg.Write((double)Durability);

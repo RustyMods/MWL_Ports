@@ -49,7 +49,7 @@ namespace MWL_Ports
             // this is how portals work
 
             PortUI.PanelPositionConfig = config("3 - UI", "Panel Position", new Vector3(1760f, 850f, 0f), "Set position of UI");
-            ShipmentManager.TransitDurationConfig = config("2 - Settings", "Transit Duration", 1800f, "Set duration of shipment transit, in seconds");
+            ShipmentManager.TransitDurationConfig = config("2 - Settings", "Time Per Meter", 2f, "Set seconds per meter for shipment transit");
             
             // this gets created after blueprints
             // it will iterate through children to find prefabs

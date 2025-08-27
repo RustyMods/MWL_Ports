@@ -141,7 +141,6 @@
         <Compile Include="src\Commands.cs" />
         <Compile Include="src\LocalKeys.cs" />
         <Compile Include="src\Manifest.cs" />
-        <Compile Include="src\Patch_UpdateLocationPins.cs" />
         <Compile Include="src\Port.cs" />
         <Compile Include="src\PortNames.cs" />
         <Compile Include="src\PortUI.cs" />

@@ -13,9 +13,39 @@ public class Manifest
     public string Name;
     public GameObject Prefab;
     public RequiredItems Requirements = new();
+    public string RequiredDefeatKey = "";
 
     public bool IsPurchased;
-    // private StringBuilder sb = new StringBuilder();
+    private StringBuilder sb = new StringBuilder();
+
+    private string _creatureName = "";
+    private string CreatureName
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(_creatureName) || !DefeatKeyToCreatureMap.TryGetValue(RequiredDefeatKey, out string? sharedName)) return _creatureName;
+            _creatureName = sharedName;
+            return _creatureName;
+        }
+    }
+
+    private static Dictionary<string, string> _defeatKeyToCreatureMap = new();
+
+    private static Dictionary<string, string> DefeatKeyToCreatureMap
+    {
+        get
+        {
+            if (_defeatKeyToCreatureMap.Count > 0 || !ZNetScene.instance) return _defeatKeyToCreatureMap;
+            foreach (GameObject prefab in ZNetScene.instance.m_prefabs)
+            {
+                if (!prefab.TryGetComponent(out Character component)) continue;
+                if (string.IsNullOrEmpty(component.m_defeatSetGlobalKey)) continue;
+                string sharedName = component.m_name;
+                _defeatKeyToCreatureMap[component.m_defeatSetGlobalKey] = sharedName;
+            }
+            return _defeatKeyToCreatureMap;
+        }
+    }
 
     public Manifest(string name, GameObject chestPrefab)
     {
@@ -23,12 +53,15 @@ public class Manifest
         Prefab = chestPrefab;
         Manifests[name] = this;
     }
-
+    
     public string GetTooltip()
     {
         if (!Prefab.TryGetComponent(out Container component)) return "";
         int size = component.m_width * component.m_height;
-        return $"Capacity: <color=yellow>{size}</color>";
+        sb.Clear();
+        if (!string.IsNullOrEmpty(CreatureName)) sb.Append($"\nRequired Key: <color=yellow>{CreatureName}</color>");
+        sb.Append($"\nCapacity: <color=yellow>{size}</color>");
+        return sb.ToString();
     }
     
     public class RequiredItems
@@ -66,17 +99,27 @@ public static class ManifestHelpers
     
     public static void Purchase(this Player player, Manifest manifest)
     {
-        var inventory =  player.GetInventory();
-        foreach (var requirement in manifest.Requirements.Requirements)
+        if (!player.NoCostCheat())
         {
-            inventory.RemoveItem(requirement.Item.m_shared.m_name, requirement.Amount);
+            var inventory =  player.GetInventory();
+            foreach (var requirement in manifest.Requirements.Requirements)
+            {
+                inventory.RemoveItem(requirement.Item.m_shared.m_name, requirement.Amount);
+            }
         }
         manifest.IsPurchased = true;
     }
 
     public static bool HasRequirements(this Player player, Manifest manifest)
     {
-        var inventory = player.GetInventory();
+        if (player.NoCostCheat()) return true;
+        if (!string.IsNullOrEmpty(manifest.RequiredDefeatKey))
+        {
+            if (!ZoneSystem.instance.GetGlobalKey(manifest.RequiredDefeatKey) &&
+                !player.GetUniqueKeys().Contains(manifest.RequiredDefeatKey))
+                return false;
+        }
+        Inventory inventory = player.GetInventory();
         foreach (var requirement in manifest.Requirements.Requirements)
         {
             var count = inventory.CountItems(requirement.Item.m_shared.m_name);

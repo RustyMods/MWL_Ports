@@ -145,6 +145,7 @@ public class PortUI : MonoBehaviour
 
     private Action<float>? OnUpdate;
     private float m_portPinTimer;
+    private static Minimap.PinData? m_tempPin;
 
     private enum TabOption
     {
@@ -220,8 +221,6 @@ public class PortUI : MonoBehaviour
         gameObject.SetActive(false);
         OnUpdate = null;
     }
-
-    private static Minimap.PinData? m_tempPin;
     public void OnMapButton()
     {
         if (Description.MapInfo == null || !Minimap.instance) return;
@@ -231,7 +230,7 @@ public class PortUI : MonoBehaviour
         {
             Minimap.instance.RemovePin(m_tempPin);
         }
-        var pin = Minimap.instance.AddPin(pos, Minimap.PinType.Icon2, Description.MapInfo.ID.Name, false, false);
+        Minimap.PinData? pin = Minimap.instance.AddPin(pos, Minimap.PinType.Icon2, Description.MapInfo.ID.Name, false, false);
         Minimap.instance.ShowPointOnMap(pos);
         m_tempPin = pin;
         m_portPinTimer = 300f;
@@ -327,12 +326,11 @@ public class PortUI : MonoBehaviour
             case TabOption.Ports:
                 if (m_selectedDestination != null)
                 {
-                    if (!m_currentPort.SendShipment(m_selectedDestination.ID))
+                    if (!m_currentPort.SendShipment(m_selectedDestination))
                     {
                         Debug.LogWarning("Failed to send shipment, are containers empty ??");
                     }
-                    m_selectedDestination.Reload();
-                    MainButton.interactable = false;
+                    else m_selectedDestination.Reload();
                     m_selectedDestination = null;
                 }
                 else Hide();
@@ -406,7 +404,7 @@ public class PortUI : MonoBehaviour
     {
         if (manifest.IsPurchased) return;
         TempListItem item = new TempListItem(Instantiate(ListItem, LeftPanelRoot));
-        item.SetIcon(Minimap.instance.GetSprite(Minimap.PinType.Icon2));
+        item.SetIcon("VikingShip");
         item.SetLabel(manifest.Name);
         item.SetButton(() =>
         {
@@ -425,7 +423,7 @@ public class PortUI : MonoBehaviour
     {
         if (shipment.State != ShipmentState.Delivered) return;
         TempListItem item = new TempListItem(Instantiate(ListItem, LeftPanelRoot));
-        item.SetIcon(shipment.GetIcon(), Color.white);
+        item.SetIcon(Minimap.PinType.Icon2);
         item.SetLabel(shipment.OriginPortName);
         item.SetButton(() =>
         {
@@ -442,30 +440,23 @@ public class PortUI : MonoBehaviour
     public void AddShipment(Shipment shipment)
     {
         TempListItem item = new TempListItem(Instantiate(ListItem, LeftPanelRoot));
-        item.SetIcon(shipment.GetIcon(), Color.white);
+        item.SetIcon(Minimap.PinType.Icon2);
         item.SetLabel(shipment.DestinationPortName);
         item.SetButton(() =>
         {
             item.SetSelected(true);
             Description.SetName(shipment.DestinationPortName);
             Description.SetBodyText(shipment.GetTooltip());
-            OnUpdate = null;
-            bool shouldUpdate = shipment.State == ShipmentState.InTransit;
-            if (shouldUpdate)
+            float timer = 0f;
+            OnUpdate = dt =>
             {
-                float timer = 0f;
-                OnUpdate = dt =>
-                {
-                    timer += dt;
-                    if (timer <= 1f) return;
-                    timer = 0.0f;
-                    Description.SetBodyText(shipment.GetTooltip());
-                };
-            }
-            else
-            {
-                OnUpdate = null;
-            }
+                bool shouldUpdate = shipment.State == ShipmentState.InTransit;
+                if (!shouldUpdate) return;
+                timer += dt;
+                if (timer <= 1f) return;
+                timer = 0.0f;
+                Description.SetBodyText(shipment.GetTooltip());
+            };
         });
         m_tempListItems.Add(item);
     }
@@ -477,7 +468,7 @@ public class PortUI : MonoBehaviour
         Port.PortInfo info = new Port.PortInfo(port);
         if (string.IsNullOrEmpty(info.ID.Name)) return;
         TempListItem item = new TempListItem(Instantiate(ListItem, LeftPanelRoot));
-        item.SetIcon(Minimap.instance.GetLocationIcon("MWL_Port_Location"), Color.white);
+        item.SetIcon(Minimap.instance.GetSprite(Minimap.PinType.Icon2), Color.white);
         item.SetLabel($"{info.ID.Name}");
         item.SetButton(() =>
         {
@@ -532,6 +523,27 @@ public class PortUI : MonoBehaviour
             if (Icon == null) return;
             Icon.sprite = sprite;
             Icon.color = color;
+        }
+        
+        public void SetIcon(Minimap.PinType pinType) => SetIcon(Minimap.instance.GetSprite(pinType), Color.white);
+
+        public void SetIcon(string prefabName)
+        {
+            if (ZNetScene.instance.GetPrefab(prefabName) is not {} prefab) return;
+            if (prefab.TryGetComponent(out ItemDrop itemDrop))
+            {
+                SetIcon(itemDrop.m_itemData);
+            }
+            else if (prefab.TryGetComponent(out Piece piece))
+            {
+                SetIcon(piece.m_icon, Color.white);
+            }
+        }
+        
+        public void SetIcon(ItemDrop.ItemData item)
+        {
+            if (!item.IsValid()) return;
+            SetIcon(item.GetIcon(), Color.white);
         }
 
         public void SetIcon(bool enable)
@@ -606,6 +618,8 @@ public class PortUI : MonoBehaviour
         private readonly Image MapIcon;
         public Port.PortInfo? MapInfo;
         
+        private readonly float BodyMinHeight;
+        
         public RightPanel(Text name, Text body, Button mapButton)
         {
             Name = name;
@@ -613,6 +627,7 @@ public class PortUI : MonoBehaviour
             BodyRect = BodyText.rectTransform;
             MapButton = mapButton;
             MapIcon = MapButton.GetComponent<Image>();
+            BodyMinHeight = body.rectTransform.sizeDelta.y;
         }
         public void SetMapButton(UnityAction action) => MapButton.onClick.AddListener(action);
         public void SetName(string name)
@@ -644,8 +659,7 @@ public class PortUI : MonoBehaviour
         private void ResizePanel()
         {
             float height = GetTextPreferredHeight(BodyText, BodyRect);
-            float minHeight = 400f;
-            float finalHeight = Mathf.Max(height, minHeight);
+            float finalHeight = Mathf.Max(height, BodyMinHeight);
             BodyRect.sizeDelta = new Vector2(BodyRect.sizeDelta.x, finalHeight);
         }
     

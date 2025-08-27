@@ -73,4 +73,9 @@ public static class ShipmentHelpers
             Debug.LogWarning("Failed to find " + childName + " or " + sourceChildName) ;
         }
     }
+
+    public static bool IsValid(this ItemDrop.ItemData item)
+    {
+        return item.m_shared.m_icons.Length > 0;
+    }
 }

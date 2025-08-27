@@ -187,10 +187,10 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         }
         foreach (ShipmentItem item in items)
         {
-            Container? container = m_containers.GetOrCreate(item.ChestID);
+            Container? container = m_containers.GetOrCreate(item.ManifestName);
             if (container == null)
             {
-                Debug.LogWarning($"Failed to create container: {item.ChestID}");
+                Debug.LogWarning($"Failed to create container: {item.ManifestName}");
                 continue;
             }
             if (!item.AddItem(container))
@@ -230,7 +230,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         return m_containers.HasItems(); // if true, can use this statement to make containers visible ??
     }
 
-    public bool SendShipment(ShipmentManager.PortID selectedPort)
+    public bool SendShipment(PortInfo selectedPort)
     {
         OnContainersChanged(); // check if there are items to send
         if (!m_containers.HasItems())
@@ -239,7 +239,8 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             return false;
         }
         // construct a new shipment
-        Shipment shipment = new Shipment(m_portID, selectedPort);
+        float distance = Utils.DistanceXZ(transform.position, selectedPort.position);
+        Shipment shipment = new Shipment(m_portID, selectedPort.ID, distance);
         Container[] containers = m_containers.GetSpawnedContainers();
         // add items from containers
         shipment.Items.Add(containers);
@@ -328,7 +329,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
 
         public void Destroy()
         {
-            if (SpawnedContainer == null) return;
+            if (SpawnedContainer == null || !SpawnedContainer.m_nview.IsValid()) return;
             if (manifest != null)
             {
                 manifest.IsPurchased = false;
@@ -344,10 +345,22 @@ public class Port : MonoBehaviour, Interactable, Hoverable
     {
         // class to parse ZDO into relevant information
         // and keep relevant functions within their own scope
-        public ShipmentManager.PortID ID;
-        public Vector3 position;
-        public List<Shipment> deliveries;
-        public List<Shipment> shipments;
+        public readonly ShipmentManager.PortID ID;
+        public readonly Vector3 position;
+        public readonly List<Shipment> deliveries;
+        public readonly List<Shipment> shipments;
+        
+        private double _estimatedDuration;
+        private double EstimatedDuration
+        {
+            get
+            {
+                if (_estimatedDuration != 0 || PortUI.instance is null || PortUI.instance.m_currentPort is null) return _estimatedDuration;
+                float distance = Utils.DistanceXZ(PortUI.instance.m_currentPort.transform.position, position);
+                _estimatedDuration = Shipment.CalculateDistanceTime(distance);
+                return _estimatedDuration;
+            }
+        }
 
         private static readonly StringBuilder sb = new StringBuilder();
 
@@ -361,8 +374,10 @@ public class Port : MonoBehaviour, Interactable, Hoverable
 
         public void Reload()
         {
-            deliveries = ShipmentManager.GetDeliveries(ID.Guid);
-            shipments = ShipmentManager.GetShipments(ID.Guid);
+            deliveries.Clear();
+            shipments.Clear();
+            deliveries.AddRange(ShipmentManager.GetDeliveries(ID.Guid));
+            shipments.AddRange(ShipmentManager.GetShipments(ID.Guid));
         }
         
         public float GetDistance(Player player) => Vector3.Distance(player.transform.position, position);
@@ -370,16 +385,18 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         public string GetTooltip()
         {
             sb.Clear();
+
+            sb.Append($"Estimated Shipment Time: <color=yellow>{Shipment.FormatTime(EstimatedDuration)}</color>\n\n");
             sb.Append($"Deliveries (<color=yellow>{deliveries.Count}</color>): ");
             foreach (Shipment? delivery in deliveries)
             {
-                string time = delivery.FormatTimeToArrival();
+                string time = Shipment.FormatTime(delivery.GetTimeToArrivalSeconds());
                 sb.AppendFormat("\nOrigin: <color=orange>{0}</color> (<color=yellow>{1}</color>{2})", delivery.OriginPortName, delivery.State, string.IsNullOrEmpty(time) ? "" : $", {time}");
             }
             sb.Append($"\n\nShipments (<color=yellow>{shipments.Count}</color>): ");
             foreach (Shipment? shipment in shipments)
             {
-                string time = shipment.FormatTimeToArrival();
+                string time = Shipment.FormatTime(shipment.GetTimeToArrivalSeconds());
                 sb.AppendFormat("\nDestination: <color=orange>{0}</color> (<color=yellow>{1}</color>{2})", shipment.DestinationPortName, shipment.State, string.IsNullOrEmpty(time) ? "" : $", {time}");
             }
             return sb.ToString();
