@@ -173,6 +173,7 @@ public enum ShipmentState
 [Serializable][PublicAPI][JsonObject(MemberSerialization.Fields)]
 public class ShipmentItem
 {
+    public string? ManifestName;
     public string ChestID;
     public string ItemName;
     public int Stack;
@@ -195,14 +196,16 @@ public class ShipmentItem
         CrafterName = item.m_crafterName;
         CustomData = item.m_customData;
     }
+    /// <summary>
+    /// Fixed food items having a valid SharedData
+    /// Use Valheim inventory <see cref="Inventory.AddItem(string, int, int, int, long, string, bool)"/>
+    /// That way, it instantiates a new game object, grabs ItemDrop component, then destroys game object
+    /// </summary>
+    /// <param name="container"></param>
+    /// <returns></returns>
     public bool AddItem(Container container)
     {
-        if (ObjectDB.instance.GetItemPrefab(ItemName) is not { } itemPrefab)
-        {
-            Debug.LogWarning("Failed to find item: " + ItemName);
-            return false;
-        }
-        ItemDrop.ItemData? item = container.GetInventory().AddItem(itemPrefab.name, Stack, Quality, Variant, CrafterID, CrafterName);
+        ItemDrop.ItemData? item = container.GetInventory().AddItem(ItemName, Stack, Quality, Variant, CrafterID, CrafterName);
         if (item == null) return false;
         item.m_durability = Durability;
         item.m_customData = CustomData;

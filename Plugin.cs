@@ -66,9 +66,9 @@ namespace MWL_Ports
                 blueprint.Location.Placement.Prioritized = true;
                 blueprint.Location.Group.Name = "MWL_Ports";
                 blueprint.Location.Placement.DistanceFromSimilar.Min = 300f;
-                blueprint.Location.Icon.Enabled = true;
+                blueprint.Location.Icon.Enabled = false;
                 // blueprint.Location.Icon.Icon = MySprite ----> if you want to use a custom sprite
-                blueprint.Location.Icon.InGameIcon = LocationManager.IconSettings.LocationIcon.Hildir;
+                // blueprint.Location.Icon.InGameIcon = LocationManager.IconSettings.LocationIcon.Hildir;
             };
             
             // this gets created before blueprint location
@@ -100,9 +100,9 @@ namespace MWL_Ports
                 blueprint.Location.Placement.Prioritized = true;
                 blueprint.Location.Group.Name = "MWL_Ports";
                 blueprint.Location.Placement.DistanceFromSimilar.Min = 300f;
-                blueprint.Location.Icon.Enabled = true;
+                blueprint.Location.Icon.Enabled = false;
                 // blueprint.Location.Icon.Icon = MySprite ----> if you want to use a custom sprite
-                blueprint.Location.Icon.InGameIcon = LocationManager.IconSettings.LocationIcon.Boss;
+                // blueprint.Location.Icon.InGameIcon = LocationManager.IconSettings.LocationIcon.Boss;
             };
             
             Blueprint portTrader = new Blueprint("portbundle", "MWL_PortTrader");
@@ -124,8 +124,19 @@ namespace MWL_Ports
                 prefab.RemoveComponent<Piece>();
                 prefab.RemoveComponent<WearNTear>();
                 prefab.GetComponent<ZNetView>().m_persistent = false;
-            };
 
+                Manifest manifest = new Manifest("Wooden Shipment", prefab);
+                manifest.Requirements.Add("Wood", 10);
+                manifest.Requirements.Add("Coins", 5);
+                manifest.Requirements.Add("Resin", 5);
+                manifest.Requirements.Add("SurtlingCore", 1);
+                
+                Manifest manifest1 = new Manifest("Wooden Shipment 2", prefab);
+                manifest1.Requirements.Add("Wood", 10);
+                manifest1.Requirements.Add("Coins", 5);
+                manifest1.Requirements.Add("Resin", 5);
+            };
+            
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On,
                 "If on, the configuration is locked and can be changed by server admins only.");
             _ = ConfigSync.AddLockingConfigEntry(_serverConfigLocked);

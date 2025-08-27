@@ -8,6 +8,8 @@ public static class LocalKeys
     public static readonly string ShipmentLabel = new Key("$label_shipment", "Shipment").GetKey();
     public static readonly string PortLabel = new Key("$label_port", "Port").GetKey();
     public static readonly string DeliveryLabel = new Key("$label_delivery", "Delivery").GetKey();
+    public static readonly string ManifestLabel = new Key("$label_manifest", "Manifest").GetKey();
+    public static readonly string OpenMapLabel = new Key("$label_open_map", "Open Map").GetKey();
 
     private class Key
     {
