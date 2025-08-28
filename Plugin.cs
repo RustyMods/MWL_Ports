@@ -111,11 +111,31 @@ namespace MWL_Ports
             {
                 foreach (Transform child in blueprint.Prefab.transform)
                 {
-                    child.gameObject.RemoveAllComponents<MonoBehaviour>();
+                    if (child.TryGetComponent(out Trader component))
+                    {
+                        Debug.LogWarning("Adding port trader component on: " + child.name);
+                        child.gameObject.name = "PortTrader";
+                        var trader = child.gameObject.AddComponent<PortTrader>();
+                        trader.m_standRange = component.m_standRange;
+                        trader.m_greetRange = component.m_greetRange;
+                        trader.m_byeRange = component.m_byeRange;
+                        trader.m_hideDialogDelay = component.m_hideDialogDelay;
+                        trader.m_randomTalkInterval = component.m_randomTalkInterval;
+                        trader.m_dialogHeight = component.m_dialogHeight;
+                        trader.m_randomTalkFX = component.m_randomTalkFX;
+                        trader.m_randomGreetFX =  component.m_randomGreetFX;
+                        trader.m_randomGoodbyeFX =  component.m_randomGoodbyeFX;
+                    }
+                    child.gameObject.RemoveAllComponents<MonoBehaviour>(false, typeof(PortTrader));
                 }
+
                 
                 PrefabManager.RegisterPrefab(blueprint.Prefab);
             };
+            
+            PortTrader.m_randomGreets.Add("Hello weary traveller!", "Good day for a shipment!", "Well look who wandered in");
+            PortTrader.m_randomGoodbye.Add("Till next time!", "You're costing me a fortune!", "Safe travels!");
+            PortTrader.m_randomTalk.Add("A Human!", "Where did you come from ?", "What are you ?");
             
             // simple class to clone in-game assets
             Clone piece_chest_wood = new Clone("piece_chest_wood", "port_chest_wood");

@@ -168,7 +168,7 @@ public class ShipmentManager : MonoBehaviour
     public static List<Shipment> GetShipments(string portID)
     {
         List<Shipment> shipments = new List<Shipment>();
-        foreach (var shipment in Shipments.Values)
+        foreach (Shipment shipment in Shipments.Values)
         {
             if (shipment.OriginPortID != portID) continue;
             shipments.Add(shipment);

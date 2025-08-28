@@ -14,6 +14,7 @@ public class Manifest
     public GameObject Prefab;
     public RequiredItems Requirements = new();
     public string RequiredDefeatKey = "";
+    public int CostToShip = 50;
 
     public bool IsPurchased;
     private static StringBuilder sb = new StringBuilder();
@@ -59,7 +60,7 @@ public class Manifest
         if (!Prefab.TryGetComponent(out Container component)) return "";
         int size = component.m_width * component.m_height;
         sb.Clear();
-        if (!string.IsNullOrEmpty(CreatureName)) sb.Append($"\nRequired Key: <color=yellow>{CreatureName}</color>");
+        if (!string.IsNullOrEmpty(CreatureName)) sb.Append($"\nRequired To Defeat: <color=yellow>{CreatureName}</color>");
         sb.Append($"\nCapacity: <color=yellow>{size}</color>");
         return sb.ToString();
     }

@@ -475,7 +475,9 @@ public class PortUI : MonoBehaviour
             item.SetSelected(true);
             m_selectedDestination = info;
             Description.SetName($"<color=orange>{info.ID.Name}</color> ({(int)info.GetDistance(Player.m_localPlayer)}m)");
-            Description.SetBodyText(info.GetTooltip());
+            var itemTooltip = m_currentPort.m_tempItems.GetCostToShipTooltip();
+            var costToShip = m_currentPort.m_containers.GetCostToShip();
+            Description.SetBodyText(info.GetTooltip() + "\n\n" + itemTooltip + "\n" + $"Cost To Ship: <color=orange>{CostItem?.m_shared.m_name ?? "Coins"}</color> <color=yellow>x{costToShip}</color>");
             Description.ShowMapButton(info);
             SetMainButtonText("Send Shipment");
             float timer = 0f;
@@ -488,12 +490,28 @@ public class PortUI : MonoBehaviour
                 timer += dt;
                 if (timer <= 1f) return;
                 timer = 0.0f;
-                Description.SetBodyText(info.GetTooltip());
+                Description.SetBodyText(info.GetTooltip() + "\n\n" + itemTooltip + "\n" + $"Cost To Ship: <color=orange>{CostItem?.m_shared.m_name ?? "Coins"}</color> <color=yellow>x{costToShip}</color>");
             };
         });
         m_tempListItems.Add(item);
     }
 
+    private static ItemDrop.ItemData? _costItem;
+
+    private static ItemDrop.ItemData? CostItem
+    {
+        get
+        {
+            if (_costItem != null) return _costItem;
+            if (!ObjectDB.instance) return null;
+            if (ObjectDB.instance.GetItemPrefab("Coins") is { } itemPrefab &&
+                itemPrefab.TryGetComponent(out ItemDrop component))
+            {
+                _costItem = component.m_itemData;
+            }
+            return _costItem;
+        }
+    }
     private class TempListItem
     {
         private readonly GameObject? Prefab;

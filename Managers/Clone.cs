@@ -11,6 +11,7 @@ public class Clone
     private GameObject? Prefab;
     private readonly string PrefabName;
     private readonly string NewName;
+    private bool Loaded;
     public event Action<GameObject>? OnCreated;
 
     public Clone(string prefabName, string newName)
@@ -22,6 +23,7 @@ public class Clone
 
     internal void Create()
     {
+        if (Loaded) return;
         // find prefab, instantiate it into our root object
         // change the name, and register to scene
         // so ZNetScene has reference to something tangible
@@ -32,5 +34,6 @@ public class Clone
         PrefabManager.RegisterPrefab(Prefab);
         OnCreated?.Invoke(Prefab);
         registeredPrefabs[Prefab.name] = Prefab;
+        Loaded = true;
     }
 }

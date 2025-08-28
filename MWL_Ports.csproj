@@ -94,6 +94,9 @@
         <Reference Include="UnityEngine">
             <HintPath>$(CorlibPath)\UnityEngine.dll</HintPath>
         </Reference>
+        <Reference Include="UnityEngine.AnimationModule">
+          <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\UnityEngine.AnimationModule.dll</HintPath>
+        </Reference>
         <Reference Include="UnityEngine.AssetBundleModule">
             <HintPath>$(CorlibPath)\UnityEngine.AssetBundleModule.dll</HintPath>
         </Reference>
@@ -143,10 +146,12 @@
         <Compile Include="src\Manifest.cs" />
         <Compile Include="src\Port.cs" />
         <Compile Include="src\PortNames.cs" />
+        <Compile Include="src\PortTrader.cs" />
         <Compile Include="src\PortUI.cs" />
         <Compile Include="src\Shipment.cs" />
         <Compile Include="src\ShipmentHelpers.cs" />
         <Compile Include="src\ShipmentManager.cs" />
+        <Compile Include="src\WearNTearPatch.cs" />
         <Compile Include="VersionHandshake.cs"/>
     </ItemGroup>
     <ItemGroup>

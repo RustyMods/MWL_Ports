@@ -16,7 +16,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
     public readonly Dictionary<string, Shipment> m_deliveries = new ();
     public string? m_selectedDelivery;
     public Humanoid? m_currentHumanoid;
-    public static readonly List<ShipmentItem> m_tempItems = new();
+    public readonly TempItems m_tempItems = new();
     public void Awake()
     {
         m_view = GetComponent<ZNetView>();
@@ -62,7 +62,6 @@ public class Port : MonoBehaviour, Interactable, Hoverable
 
     public void SaveItems()
     {
-        // tempItems is a static List, so make sure its empty before adding new items
         m_tempItems.Clear();
         // make sure znetview is valid before trying to save data to it
         if (!m_view.IsValid())
@@ -78,8 +77,8 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             // instead of Json, but we could use Json if you wanted to
             ZPackage pkg = new ZPackage();
             // save the amount of items, so we know how to parse it later
-            pkg.Write(m_tempItems.Count);
-            foreach (ShipmentItem? item in m_tempItems)
+            pkg.Write(m_tempItems.Items.Count);
+            foreach (ShipmentItem? item in m_tempItems.Items)
             {
                 // created a function within shipment item class
                 // to easily write each item data to package
@@ -114,7 +113,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             m_tempItems.Add(temp);
         }
         // load the items into the containers
-        return LoadItems(m_tempItems);
+        return LoadItems(m_tempItems.Items);
     }
     public bool SpawnContainer(Manifest manifest)
     {
@@ -122,7 +121,9 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         {
             if (temp.IsSpawned) continue;
             temp.manifest = manifest;
-            temp.Spawn();
+            var container = temp.Spawn();
+            if (container == null) return false;
+            container.GetInventory().m_onChanged = OnContainersChanged;
             return true;
         }
         return false;
@@ -203,7 +204,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         {
             container.GetInventory().m_onChanged = OnContainersChanged;
         }
-
+        OnContainersChanged();
         return true;
     }
 
@@ -226,13 +227,13 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             LoadItems(shipment.Items);
             m_selectedDelivery = selectedShipment;
         }
+        
         OnContainersChanged(); // checks if containers are loaded and saves to ZDO
         return m_containers.HasItems(); // if true, can use this statement to make containers visible ??
     }
 
     public bool SendShipment(PortInfo selectedPort)
     {
-        OnContainersChanged(); // check if there are items to send
         if (!m_containers.HasItems())
         {
             if (m_currentHumanoid != null) m_currentHumanoid.Message(MessageHud.MessageType.Center, "Tried to send shipment, but containers are empty !");
@@ -247,12 +248,33 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         // send shipment to server to manage
         shipment.SendToServer();
         DestroyContainers();
+        m_tempItems.Clear();
         m_view.GetZDO().Set(PortVars.Items, ""); // make sure to tell ZDO that there are no items
         if (m_currentHumanoid != null) m_currentHumanoid.Message(MessageHud.MessageType.Center, "Successfully sent shipment!");
         return true;
     }
 
     public string GetHoverName() => Localization.instance.Localize(m_name);
+
+    public class TempItems
+    {
+        public readonly List<ShipmentItem> Items = new();
+        public float GetTotalWeight() => Items.Sum(i => i.Weight);
+        public int GetTotalStack() => Items.Sum(i => i.Stack);
+        
+        public string GetCostToShipTooltip()
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("Current Shipment:");
+            sb.Append($"\nNumber of items: <color=yellow>{GetTotalStack()}</color>");
+            sb.Append($"\nTotal Weight: <color=yellow>{GetTotalWeight():0.0}</color>");
+            return sb.ToString();
+        }
+        public void Clear() => Items.Clear();
+        public void Add(ShipmentItem shipmentItem) => Items.Add(shipmentItem);
+        public void Add(params Container[] containers) => Items.Add(containers);
+        
+    }
 
     public class TempContainers
     {
@@ -274,6 +296,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
                     return null;
                 }
                 temp.manifest = manifest;
+                temp.manifest.IsPurchased = true;
                 return temp.Spawn();
             }
             // if null, then all temp containers are spawned
@@ -300,6 +323,17 @@ public class Port : MonoBehaviour, Interactable, Hoverable
 
             return false;
         }
+
+        public int GetCostToShip()
+        {
+            List<Manifest> manifests = new();
+            foreach (var temp in m_list)
+            {
+                if (temp.manifest == null) continue;
+                manifests.Add(temp.manifest);
+            }
+            return manifests.Sum(i => i.CostToShip);
+        }
     }
 
     public class TempContainer
@@ -324,6 +358,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             chest.name = manifest.Name;
             Container? container = chest.GetComponent<Container>();
             SpawnedContainer = container;
+            manifest.IsPurchased = true;
             return container;
         }
 
@@ -386,8 +421,8 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         {
             sb.Clear();
 
-            sb.Append($"Estimated Shipment Time: <color=yellow>{Shipment.FormatTime(EstimatedDuration)}</color>\n\n");
-            sb.Append($"Deliveries (<color=yellow>{deliveries.Count}</color>): ");
+            sb.Append($"Estimated Shipment Time: <color=yellow>{Shipment.FormatTime(EstimatedDuration)}</color>\n");
+            sb.Append($"\nDeliveries (<color=yellow>{deliveries.Count}</color>): ");
             foreach (Shipment? delivery in deliveries)
             {
                 string time = Shipment.FormatTime(delivery.GetTimeToArrivalSeconds());

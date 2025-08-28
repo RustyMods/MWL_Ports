@@ -173,6 +173,11 @@ public class LocationManager
 	    internal void Setup()
 	    {
 		    configs.Enabled = config(Prefab.name, "Enabled", MWL_PortsPlugin.Toggle.On, $"If on, {Prefab.name} will load");
+		    configs.Enabled.SettingChanged += (_, _) =>
+		    {
+			    if (registeredLocation == null) return;
+			    registeredLocation.m_enable = configs.Enabled.Value is MWL_PortsPlugin.Toggle.On;
+		    };
 	    }
 	    
 	    private void Load()
@@ -306,6 +311,9 @@ public class LocationManager
 	    public bool Enabled;
 	    public Sprite? Icon;
 	    public LocationIcon InGameIcon = LocationIcon.None;
+	    
+	    public void Set(Sprite sprite) => Icon = sprite;
+	    public void Set(LocationIcon icon) => InGameIcon = icon;
 
 	    internal Sprite? GetSprite()
 	    {

@@ -184,6 +184,7 @@ public class ShipmentItem
     public long CrafterID;
     public string CrafterName;
     public Dictionary<string, string> CustomData;
+    [NonSerialized] public float Weight;
 
     public ShipmentItem(string chestID, ItemDrop.ItemData item)
     {
@@ -196,6 +197,7 @@ public class ShipmentItem
         CrafterID = item.m_crafterID;
         CrafterName = item.m_crafterName;
         CustomData = item.m_customData;
+        Weight = item.m_shared.m_weight;
     }
     /// <summary>
     /// Fixed food items having a valid SharedData
