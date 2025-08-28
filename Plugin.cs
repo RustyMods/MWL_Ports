@@ -57,8 +57,10 @@ namespace MWL_Ports
             ShipmentManager.CurrencyConfig.SettingChanged += (_, _) => ShipmentManager._currencyItem = null;
             ShipmentManager.OverrideTransitTime = config("2 - Settings", "Override Transit Duration", Toggle.Off, "If on, transit time will be based off override instead of calculated based off distance");
             ShipmentManager.TransitTime = config("2 - Settings", "Transit Duration", 1800f, "Set override transit duration in seconds, 1800 = 30min");
-            PortUI.BkgOption = config("3 - UI", "Background", PortUI.BackgroundOption.Opaque, "Set background type");
+            PortUI.BkgOption = config("3 - UI", "Background", PortUI.BackgroundOption.Opaque, "Set background type", false);
             PortUI.BkgOption.SettingChanged += PortUI.OnBackgroundOptionChange;
+            PortUI.UseTeleportTab = config("2 - Settings", "Teleport To Ports", Toggle.Off, "If on, players can teleport to ports");
+            PortUI.UseTeleportTab.SettingChanged += PortUI.OnUseTeleportTabChange;
             // this gets created after blueprints
             // it will iterate through children to find prefabs
             // and replace them
@@ -141,10 +143,6 @@ namespace MWL_Ports
                 
                 PrefabManager.RegisterPrefab(blueprint.Prefab);
             };
-            
-            PortTrader.m_randomGreets.Add("Hello weary traveller!", "Good day for a shipment!", "Well look who wandered in");
-            PortTrader.m_randomGoodbye.Add("Till next time!", "You're costing me a fortune!", "Safe travels!");
-            PortTrader.m_randomTalk.Add("A Human!", "Where did you come from ?", "What are you ?");
             
             // simple class to clone in-game assets
             Clone piece_chest_wood = new Clone("piece_chest_wood", "MWL_port_chest_wood");

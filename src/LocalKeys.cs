@@ -10,9 +10,9 @@ public static class LocalKeys
     public static readonly string DeliveryLabel = new Key("$label_delivery", "Delivery").GetKey();
     public static readonly string ManifestLabel = new Key("$label_manifest", "Manifest").GetKey();
     public static readonly string OpenMapLabel = new Key("$label_open_map", "Open Map").GetKey();
-    public static readonly string TeleportLabel = new Key($"$label_teleport", "Teleport").GetKey();
-
-    private class Key
+    public static readonly string TeleportLabel = new Key("$label_teleport", "Teleport").GetKey();
+    public static readonly string PortTraderName = new Key("$trader_port", "Skaarg").GetKey();
+    public class Key
     {
         private readonly LocalizeKey key;
 

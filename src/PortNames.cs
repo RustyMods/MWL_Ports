@@ -1,6 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using HarmonyLib;
+using JetBrains.Annotations;
 using MWL_Ports.Managers;
+using ServerSync;
 
 namespace MWL_Ports;
 
@@ -43,21 +46,37 @@ public static class PortNames
 
     public static string GetRandomName()
     {
+        // right, this does not work because it happens locally
         if (UsedTokens.Count >= Tokens.Count)
         {
             UsedTokens.Clear();
         }
 
         List<string> availableTokens = Tokens.Keys.Where(t => !UsedTokens.Contains(t)).ToList();
-
         if (availableTokens.Count == 0)
         {
             return "Port";
         }
-
+        
         string token = availableTokens[UnityEngine.Random.Range(0, availableTokens.Count)];
         UsedTokens.Add(token);
+        ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, nameof(RPC_RegisterUsedToken), token);
         return token;
+    }
+
+    [HarmonyPatch(typeof(ZNetScene), nameof(ZNetScene.Awake))]
+    private static class RegisterUsedTokenRPC
+    {
+        [UsedImplicitly]
+        private static void Postfix()
+        {
+            ZRoutedRpc.instance.Register<string>(nameof(RPC_RegisterUsedToken), RPC_RegisterUsedToken);
+        }
+    }
+
+    public static void RPC_RegisterUsedToken(long sender, string token)
+    {
+        UsedTokens.Add(token);
     }
 
 }

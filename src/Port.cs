@@ -11,7 +11,8 @@ public class Port : MonoBehaviour, Interactable, Hoverable
 {
     public ZNetView m_view = null!;
     public ShipmentManager.PortID m_portID;
-    public string m_name = "Port Manager";
+    public string m_name = "Port";
+    public string m_traderName = "Haldor";
     public readonly ContainerPlacement m_containers = new();
     public Shipment? m_selectedDelivery;
     public Humanoid? m_currentHumanoid;
@@ -40,6 +41,9 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         // save them to ZDO, to make sure our new random name, or new Guid is saved
         m_view.GetZDO().Set(PortVars.GUID, m_portID.GUID);
         m_view.GetZDO().Set(PortVars.Name, m_name);
+        
+        m_traderName = m_view.GetZDO().GetString(PortVars.TraderName, TraderNames.GetRandomName());
+        m_view.GetZDO().Set(PortVars.TraderName, m_traderName);
     }
 
     public void Start()
@@ -164,6 +168,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         if (PortUI.instance == null) return false;
         PortUI.instance.Show(this);
         // save user so we can spam them with messages
+        if (user is Player player) player.AddKnownPort(m_portID);
         m_currentHumanoid = user;
         return false;
     }
@@ -173,7 +178,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
     public string GetHoverText()
     {
         StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.Append("Port Manager");
+        stringBuilder.Append(m_traderName);
         stringBuilder.Append("\n[<color=yellow><b>$KEY_Use</b></color>] Open");
         return Localization.instance.Localize(stringBuilder.ToString());
     }
@@ -250,7 +255,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         return true;
     }
 
-    public string GetHoverName() => Localization.instance.Localize(m_name);
+    public string GetHoverName() => Localization.instance.Localize(m_traderName);
 
     public string GetTooltip()
     {
@@ -480,12 +485,13 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             return sb.ToString();
         }
     }
-
     private static class PortVars
     {
         // organization sake to manage Port ZDO variables
         public static readonly int Name = "PortName".GetStableHashCode();
         public static readonly int GUID = "PortGUID".GetStableHashCode();
         public static readonly int Items = "PortItems".GetStableHashCode();
+        public static readonly int TraderName = "PortTraderName".GetStableHashCode();
+        
     }
 }

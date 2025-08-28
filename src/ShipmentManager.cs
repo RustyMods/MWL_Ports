@@ -150,7 +150,6 @@ public class ShipmentManager : MonoBehaviour
 
     public void OnClientUpdateShipments()
     {
-        if (ServerSyncedShipments == null) return;
         // make sure that the server does not do this, since it is principle manager
         // no need to update twice
         if (!ZNet.instance || ZNet.instance.IsServer()) return;
@@ -238,7 +237,6 @@ public class ShipmentManager : MonoBehaviour
 
     public static void UpdateShipments()
     {
-        if (ServerSyncedShipments == null) return;
         if (!ZNet.instance || !ZNet.instance.IsServer()) return;
         // serialize entire dictionary of shipments
         string json = JsonConvert.SerializeObject(Shipments, Formatting.Indented);
