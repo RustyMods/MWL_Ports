@@ -50,7 +50,8 @@ namespace MWL_Ports
 
             PortUI.PanelPositionConfig = config("3 - UI", "Panel Position", new Vector3(1760f, 850f, 0f), "Set position of UI");
             ShipmentManager.TransitDurationConfig = config("2 - Settings", "Time Per Meter", 2f, "Set seconds per meter for shipment transit");
-            
+            ShipmentManager.CurrencyConfig = config("2 - Settings", "Shipment Currency", "Coins", "Set item prefab to use as currency to ship items");
+            ShipmentManager.CurrencyConfig.SettingChanged += (_, _) => ShipmentManager._currencyItem = null;
             // this gets created after blueprints
             // it will iterate through children to find prefabs
             // and replace them

@@ -318,6 +318,17 @@ public class PortUI : MonoBehaviour
         OnUpdate = null;
     }
 
+    public bool CanShip()
+    {
+        if (m_currentPort == null) return false;
+        if (!Player.m_localPlayer) return false;
+        if (Player.m_localPlayer.NoCostCheat()) return true;
+        var cost = m_currentPort.m_containers.GetCost();
+        var costItem = ShipmentManager.CurrencyItem?.m_shared.m_name ?? "$item_coins";
+        var count = Player.m_localPlayer.GetInventory().CountItems(costItem);
+        return count >= cost;
+    }
+
     public void OnMainButton()
     {
         if (m_currentPort == null) return;
@@ -330,7 +341,11 @@ public class PortUI : MonoBehaviour
                     {
                         Debug.LogWarning("Failed to send shipment, are containers empty ??");
                     }
-                    else m_selectedDestination.Reload();
+                    else
+                    {
+                        m_selectedDestination.Reload();
+                        Player.m_localPlayer.GetInventory().RemoveItem(ShipmentManager.CurrencyItem?.m_shared.m_name ?? "$item_coins", m_currentPort.m_containers.GetCost());
+                    }
                     m_selectedDestination = null;
                 }
                 else Hide();
@@ -475,11 +490,17 @@ public class PortUI : MonoBehaviour
             item.SetSelected(true);
             m_selectedDestination = info;
             Description.SetName($"<color=orange>{info.ID.Name}</color> ({(int)info.GetDistance(Player.m_localPlayer)}m)");
-            var itemTooltip = m_currentPort.m_tempItems.GetCostToShipTooltip();
-            var costToShip = m_currentPort.m_containers.GetCostToShip();
-            Description.SetBodyText(info.GetTooltip() + "\n\n" + itemTooltip + "\n" + $"Cost To Ship: <color=orange>{CostItem?.m_shared.m_name ?? "Coins"}</color> <color=yellow>x{costToShip}</color>");
+            string containerTooltip = m_currentPort.GetTooltip(); // store it here, to keep this part static
+            // that way when we update the tooltip we do not need to regenerate the container tooltip again
+            // since its more expensive to loop through temp containers and temp items
+            // even though we do cache everything in fields
+            // no reason to regenerate this part, since users will always leave UI to change contents of containers anyway
+            // they will not be changing containers while looking at UI
+            // TODO: unless multiplayer and another user is tampering with containers ???
+            Description.SetBodyText(info.GetTooltip() + "\n\n" + containerTooltip);
             Description.ShowMapButton(info);
             SetMainButtonText("Send Shipment");
+            MainButton.interactable = CanShip();
             float timer = 0f;
             OnUpdate = dt =>
             {
@@ -490,27 +511,10 @@ public class PortUI : MonoBehaviour
                 timer += dt;
                 if (timer <= 1f) return;
                 timer = 0.0f;
-                Description.SetBodyText(info.GetTooltip() + "\n\n" + itemTooltip + "\n" + $"Cost To Ship: <color=orange>{CostItem?.m_shared.m_name ?? "Coins"}</color> <color=yellow>x{costToShip}</color>");
+                Description.SetBodyText(info.GetTooltip() + "\n\n" + containerTooltip);
             };
         });
         m_tempListItems.Add(item);
-    }
-
-    private static ItemDrop.ItemData? _costItem;
-
-    private static ItemDrop.ItemData? CostItem
-    {
-        get
-        {
-            if (_costItem != null) return _costItem;
-            if (!ObjectDB.instance) return null;
-            if (ObjectDB.instance.GetItemPrefab("Coins") is { } itemPrefab &&
-                itemPrefab.TryGetComponent(out ItemDrop component))
-            {
-                _costItem = component.m_itemData;
-            }
-            return _costItem;
-        }
     }
     private class TempListItem
     {

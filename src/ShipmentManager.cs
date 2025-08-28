@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -30,6 +31,23 @@ public class ShipmentManager : MonoBehaviour
     private static readonly List<ZDO> TempZDO = new(); // server side
     private static HashSet<ZDO> TempZDOHashSet = new(); // client side
     public static readonly List<string> PrefabsToSearch = new();
+    public static ConfigEntry<string> CurrencyConfig = null!;
+    public static event Action? OnShipmentsUpdated;
+    
+    public static ItemDrop.ItemData? _currencyItem;
+    public static ItemDrop.ItemData? CurrencyItem
+    {
+        get
+        {
+            if (_currencyItem != null) return _currencyItem;
+            if (!ObjectDB.instance) return null;
+            if (ObjectDB.instance.GetItemPrefab(CurrencyConfig.Value) is { } itemPrefab && itemPrefab.TryGetComponent(out ItemDrop component))
+            {
+                _currencyItem = component.m_itemData;
+            }
+            return _currencyItem;
+        }
+    }
     
     private WaitForSeconds _wait = new WaitForSeconds(10f);
     private Coroutine? _sendZDOCoroutine;
@@ -138,6 +156,7 @@ public class ShipmentManager : MonoBehaviour
         Dictionary<string, Shipment>? data = JsonConvert.DeserializeObject<Dictionary<string, Shipment>>(ServerSyncedShipments.Value);
         if (data == null) return;
         Shipments = data;
+        OnShipmentsUpdated?.Invoke();
     }
 
     public static HashSet<ZDO> GetPorts()

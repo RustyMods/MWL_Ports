@@ -62,6 +62,11 @@ public class Port : MonoBehaviour, Interactable, Hoverable
 
     public void SaveItems()
     {
+        // temp items changed to handle more dynamic changes
+        // it now is a real-time reference to the contents
+        // anytime contents change, items are saved as ShipmentItem
+        // and cached in temp items
+        // ready to be loaded into containers, sent as a shipment, and get tooltip
         m_tempItems.Clear();
         // make sure znetview is valid before trying to save data to it
         if (!m_view.IsValid())
@@ -69,6 +74,8 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             Debug.LogWarning("ZNETVIEW not valid when trying to save items");
             return;
         }
+        // has item checks spawned containers, if no spawned containers, returns false
+        // else checks contents
         if (m_containers.HasItems())
         {
             // iterate through our containers and add them to the temp list
@@ -117,11 +124,18 @@ public class Port : MonoBehaviour, Interactable, Hoverable
     }
     public bool SpawnContainer(Manifest manifest)
     {
+        // modified to handle manifests
+        // containers are dynamic instead of static objects
+        // that way they can be formatted to reference back to the manifest that triggered them
         foreach (TempContainer? temp in m_containers.m_list)
         {
             if (temp.IsSpawned) continue;
+            // set temp container to manifest
             temp.manifest = manifest;
+            // spawn container and rename container to manifest name
+            // that way when they are saved to shipment, they can take container name (manifest name) ID
             var container = temp.Spawn();
+            
             if (container == null) return false;
             container.GetInventory().m_onChanged = OnContainersChanged;
             return true;
@@ -182,10 +196,12 @@ public class Port : MonoBehaviour, Interactable, Hoverable
 
     public bool LoadItems(List<ShipmentItem> items)
     {
-        foreach (var container in m_containers.GetSpawnedContainers())
+        // remove callback
+        foreach (Container container in m_containers.GetSpawnedContainers())
         {
             container.GetInventory().m_onChanged = null;
         }
+        // load items
         foreach (ShipmentItem item in items)
         {
             Container? container = m_containers.GetOrCreate(item.ManifestName);
@@ -199,11 +215,12 @@ public class Port : MonoBehaviour, Interactable, Hoverable
                 Debug.LogWarning("Failed to add item: " + item.ItemName);
             }
         }
-        // reset CheckContainers()
+        // reset callback
         foreach (Container container in m_containers.GetSpawnedContainers())
         {
             container.GetInventory().m_onChanged = OnContainersChanged;
         }
+        // save to ZDO and temp items
         OnContainersChanged();
         return true;
     }
@@ -219,9 +236,11 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         {
             if (m_containers.HasItems())
             {
-                if (m_currentHumanoid != null)
-                    m_currentHumanoid.Message(MessageHud.MessageType.Center,
-                        "Containers have items! cannot load delivery");
+                // since containers reference to specific manifests
+                // we do not want random containers that exist without being formatted to manifests
+                // so stop loading delivery if current containers are active
+                // that is, are spawned
+                if (m_currentHumanoid != null) m_currentHumanoid.Message(MessageHud.MessageType.Center, "Containers have items! cannot load delivery");
                 return false;
             }
             LoadItems(shipment.Items);
@@ -256,18 +275,31 @@ public class Port : MonoBehaviour, Interactable, Hoverable
 
     public string GetHoverName() => Localization.instance.Localize(m_name);
 
+    public string GetTooltip()
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.Append("Current Shipment:");
+        sb.Append($"\nCost: <color=orange>{ShipmentManager.CurrencyItem?.m_shared.m_name ?? "$item_coins"}</color> <color=yellow>x{m_containers.GetCost()}</color>");
+        sb.Append($"\n{m_tempItems.GetTooltip()}");
+        return sb.ToString();
+    }
+
     public class TempItems
     {
         public readonly List<ShipmentItem> Items = new();
-        public float GetTotalWeight() => Items.Sum(i => i.Weight);
-        public int GetTotalStack() => Items.Sum(i => i.Stack);
+        private float GetTotalWeight() => Items.Sum(i => i.Weight);
+        private int GetTotalStack() => Items.Sum(i => i.Stack);
         
-        public string GetCostToShipTooltip()
+        public string GetTooltip()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("Current Shipment:");
             sb.Append($"\nNumber of items: <color=yellow>{GetTotalStack()}</color>");
             sb.Append($"\nTotal Weight: <color=yellow>{GetTotalWeight():0.0}</color>");
+            sb.Append("\nContents:");
+            foreach (var item in Items)
+            {
+                sb.Append($"\n<color=orange>{item.SharedName}</color> x{item.Stack}");
+            }
             return sb.ToString();
         }
         public void Clear() => Items.Clear();
@@ -324,7 +356,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             return false;
         }
 
-        public int GetCostToShip()
+        public int GetCost()
         {
             List<Manifest> manifests = new();
             foreach (var temp in m_list)
@@ -355,9 +387,14 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         {
             if (manifest == null) return null;
             GameObject? chest = Instantiate(manifest.Prefab, transform.position, transform.rotation);
+            // set chest name to manifest name to know which manifest spawned which container
+            // could save to ZDO, but these are "cloned" objects, so changing name is fine
+            // so easier access
             chest.name = manifest.Name;
             Container? container = chest.GetComponent<Container>();
+            // set temp container as spawned and hold reference
             SpawnedContainer = container;
+            // set manifest to purchased to remove from UI list
             manifest.IsPurchased = true;
             return container;
         }
@@ -367,11 +404,14 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             if (SpawnedContainer == null || !SpawnedContainer.m_nview.IsValid()) return;
             if (manifest != null)
             {
+                // reset manifest to make it available to purchase again
                 manifest.IsPurchased = false;
+                // remove reference
                 manifest = null;
             }
             SpawnedContainer.m_nview.ClaimOwnership();
             SpawnedContainer.m_nview.Destroy();
+            // remove reference
             SpawnedContainer = null;
         }
     }
@@ -392,7 +432,11 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             {
                 if (_estimatedDuration != 0 || PortUI.instance is null || PortUI.instance.m_currentPort is null) return _estimatedDuration;
                 float distance = Utils.DistanceXZ(PortUI.instance.m_currentPort.transform.position, position);
+                // calculate time by distance
+                // cache result
                 _estimatedDuration = Shipment.CalculateDistanceTime(distance);
+                // since our ports are static (not moving)
+                // no need to recalculate this
                 return _estimatedDuration;
             }
         }
@@ -401,14 +445,24 @@ public class Port : MonoBehaviour, Interactable, Hoverable
 
         public PortInfo(ZDO zdo)
         {
+            // cache information
+            // to use to manage selected destination
+            // and details about port
             ID = new ShipmentManager.PortID(zdo.GetString(PortVars.Guid), zdo.GetString(PortVars.Name));
             position = zdo.GetPosition();
             deliveries = ShipmentManager.GetDeliveries(ID.Guid);
             shipments = ShipmentManager.GetShipments(ID.Guid);
         }
 
+        /// <summary>
+        /// <see cref="ShipmentManager.OnShipmentsUpdated"/>
+        /// </summary>
         public void Reload()
         {
+            // when shipments are sent, they are sent to server, then local shipment manager receives new shipments
+            // re-cache the updated shipments
+            // TODO: check multiplayer if re-caching is too soon, what is the lag time between client sends and server callback ???
+            // TODO: if it is too soon, we can use event handler in the shipment manager, so when they are updated, we reload
             deliveries.Clear();
             shipments.Clear();
             deliveries.AddRange(ShipmentManager.GetDeliveries(ID.Guid));

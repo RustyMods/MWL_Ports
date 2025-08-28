@@ -26,6 +26,7 @@ public class Manifest
         {
             if (string.IsNullOrEmpty(_creatureName) && DefeatKeyToCreatureMap.TryGetValue(RequiredDefeatKey, out var sharedName))
                 _creatureName = sharedName ?? string.Empty;
+            // cache result
             return _creatureName;
         }
     }
@@ -39,8 +40,11 @@ public class Manifest
             if (_defeatKeyToCreatureMap.Count > 0 || !ZNetScene.instance) return _defeatKeyToCreatureMap;
             foreach (GameObject prefab in ZNetScene.instance.m_prefabs)
             {
+                // find all characters
                 if (!prefab.TryGetComponent(out Character component)) continue;
+                // if they have a defeat key
                 if (string.IsNullOrEmpty(component.m_defeatSetGlobalKey)) continue;
+                // cache defeat key to shared name
                 string sharedName = component.m_name;
                 _defeatKeyToCreatureMap[component.m_defeatSetGlobalKey] = sharedName;
             }
@@ -102,7 +106,7 @@ public static class ManifestHelpers
     {
         if (!player.NoCostCheat())
         {
-            var inventory =  player.GetInventory();
+            Inventory inventory =  player.GetInventory();
             foreach (var requirement in manifest.Requirements.Requirements)
             {
                 inventory.RemoveItem(requirement.Item.m_shared.m_name, requirement.Amount);

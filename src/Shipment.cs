@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using JetBrains.Annotations;
+using MWL_Ports.Managers;
 using Newtonsoft.Json;
 using UnityEngine;
 
@@ -184,8 +185,8 @@ public class ShipmentItem
     public long CrafterID;
     public string CrafterName;
     public Dictionary<string, string> CustomData;
-    [NonSerialized] public float Weight;
-
+    public float Weight;
+    public string SharedName;
     public ShipmentItem(string chestID, ItemDrop.ItemData item)
     {
         ManifestName = chestID;
@@ -198,6 +199,7 @@ public class ShipmentItem
         CrafterName = item.m_crafterName;
         CustomData = item.m_customData;
         Weight = item.m_shared.m_weight;
+        SharedName = item.m_shared.m_name;
     }
     /// <summary>
     /// Fixed food items having a valid SharedData
@@ -225,6 +227,8 @@ public class ShipmentItem
         Variant = pkg.ReadInt();
         CrafterID = pkg.ReadLong();
         CrafterName = pkg.ReadString();
+        SharedName = pkg.ReadString();
+        Weight = (float)pkg.ReadDouble();
         CustomData = new Dictionary<string, string>();
         int customDataCount = pkg.ReadInt();
         if (customDataCount <= 0) return;
@@ -244,6 +248,8 @@ public class ShipmentItem
         pkg.Write(Variant);
         pkg.Write(CrafterID);
         pkg.Write(CrafterName);
+        pkg.Write(SharedName);
+        pkg.Write((double)Weight);
         pkg.Write(CustomData.Count);
         foreach (var kvp in CustomData)
         {

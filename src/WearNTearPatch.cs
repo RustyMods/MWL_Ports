@@ -10,6 +10,7 @@ public class WearNTearPatch
     [UsedImplicitly]
     private static bool Prefix(WearNTear __instance, HitData hit)
     {
+        // patch to make wear n tear objects in our large location immune
         foreach (Location? location in Location.s_allLocations)
         {
             if (!location.IsInside(__instance.transform.position, 50f, true)) continue;
