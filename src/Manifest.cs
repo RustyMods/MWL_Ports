@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using JetBrains.Annotations;
 using MWL_Ports.Managers;
@@ -9,12 +10,14 @@ namespace MWL_Ports;
 [PublicAPI]
 public class Manifest
 {
-    public static Dictionary<string, Manifest> Manifests = new();
+    public static readonly Dictionary<int, Manifest> Manifests = new();
     public string Name;
-    public GameObject Prefab;
-    public RequiredItems Requirements = new();
+    public int ChestStableHashCode;
+    public Container Chest;
+    public ManifestRecipe Recipe = new();
     public string RequiredDefeatKey = "";
     public int CostToShip = 50;
+    public Sprite? Icon;
 
     public bool IsPurchased;
     private static StringBuilder sb = new StringBuilder();
@@ -52,24 +55,30 @@ public class Manifest
         }
     }
 
-    public Manifest(string name, GameObject chestPrefab)
+    public Manifest(string name, Container container)
     {
         Name = name;
-        Prefab = chestPrefab;
-        Manifests[name] = this;
+        Chest = container;
+        ChestStableHashCode = container.name.GetStableHashCode();
+        if (Manifests.ContainsKey(ChestStableHashCode))
+        {
+            Debug.LogWarning($"{Name}: {Chest.name} is already registered");
+            return;
+        }
+        Manifests[ChestStableHashCode] = this;
     }
     
     public string GetTooltip()
     {
-        if (!Prefab.TryGetComponent(out Container component)) return "";
-        int size = component.m_width * component.m_height;
+        int size = Chest.m_width * Chest.m_height;
         sb.Clear();
         if (!string.IsNullOrEmpty(CreatureName)) sb.Append($"\nRequired To Defeat: <color=yellow>{CreatureName}</color>");
         sb.Append($"\nCapacity: <color=yellow>{size}</color>");
+        sb.Append($"\nCost To Ship: <color=yellow>{CostToShip}</color>");
         return sb.ToString();
     }
     
-    public class RequiredItems
+    public class ManifestRecipe
     {
         public readonly List<Requirement> Requirements = new();
 
@@ -97,17 +106,22 @@ public static class ManifestHelpers
 {
     public static Manifest.Requirement? GetRequirement(this Manifest manifest, int index)
     {
-        if (index < 0 || index >= manifest.Requirements.Requirements.Count) return null;
-        return manifest.Requirements.Requirements[index];
+        if (index < 0 || index >= manifest.Recipe.Requirements.Count) return null;
+        return manifest.Recipe.Requirements[index];
     }
-    
-    
+
+    public static bool IsKnownManifest(this Player player, Manifest manifest)
+    {
+        if (player.NoCostCheat()) return true;
+        return manifest.Recipe.Requirements.All(requirement => player.IsKnownMaterial(requirement.Item.m_shared.m_name));
+    }
+
     public static void Purchase(this Player player, Manifest manifest)
     {
         if (!player.NoCostCheat())
         {
             Inventory inventory =  player.GetInventory();
-            foreach (var requirement in manifest.Requirements.Requirements)
+            foreach (var requirement in manifest.Recipe.Requirements)
             {
                 inventory.RemoveItem(requirement.Item.m_shared.m_name, requirement.Amount);
             }
@@ -125,7 +139,7 @@ public static class ManifestHelpers
                 return false;
         }
         Inventory inventory = player.GetInventory();
-        foreach (var requirement in manifest.Requirements.Requirements)
+        foreach (var requirement in manifest.Recipe.Requirements)
         {
             var count = inventory.CountItems(requirement.Item.m_shared.m_name);
             if (count >= requirement.Amount) continue;

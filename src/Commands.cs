@@ -6,7 +6,6 @@ namespace MWL_Ports;
 
 public static class Commands
 {
-
     private static readonly List<Minimap.PinData> tempPins = new();
     public static void Setup()
     {
@@ -32,9 +31,9 @@ public static class Commands
                 Minimap.instance.RemovePin(pin);
             }
             tempPins.Clear();
-            foreach (var port in ShipmentManager.GetPorts())
+            foreach (var vector in PortManager.GetPortLocations())
             {
-                var pin = Minimap.instance.AddPin(port.GetPosition(), Minimap.PinType.Icon3, "port", false, false);
+                var pin = Minimap.instance.AddPin(vector, Minimap.PinType.Icon3, "port", false, false);
                 tempPins.Add(pin);
             }
         });

@@ -8,7 +8,7 @@ namespace MWL_Ports;
 [PublicAPI]
 public static class ShipmentHelpers
 {
-    public static void Add(this List<ShipmentItem> list, string chestID, ItemDrop.ItemData item)
+    public static void Add(this List<ShipmentItem> list, int chestID, ItemDrop.ItemData item)
     {
         list.Add(new  ShipmentItem(chestID, item));
     }
@@ -20,12 +20,12 @@ public static class ShipmentHelpers
 
     public static void Add(this List<ShipmentItem> list, Container container)
     {
-        string chestName = container.name.Replace("(Clone)", string.Empty);
+        int chestID = container.m_nview.GetZDO().GetPrefab();
         List<ItemDrop.ItemData> items = container.GetInventory().GetAllItems();
         if (items.Count <= 0) return;
         foreach (ItemDrop.ItemData item in items)
         {
-            list.Add(chestName, item);
+            list.Add(chestID, item);
         }
     }
 

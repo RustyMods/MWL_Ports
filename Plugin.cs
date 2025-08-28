@@ -44,14 +44,21 @@ namespace MWL_Ports
             
             // make shipment manager a monobehavior to keep functions within it's scope while taking advantages of monobehaviors
             gameObject.AddComponent<ShipmentManager>();
+            gameObject.AddComponent<PortManager>();
+            
             ShipmentManager.PrefabsToSearch.Add("MWL_Port", "MWL_PortTrader"); // add port variants to search for
             // this is used by server to iterate through ZDOs and send them to players
             // this is how portals work
 
-            PortUI.PanelPositionConfig = config("3 - UI", "Panel Position", new Vector3(1760f, 850f, 0f), "Set position of UI");
-            ShipmentManager.TransitDurationConfig = config("2 - Settings", "Time Per Meter", 2f, "Set seconds per meter for shipment transit");
+            PortUI.PanelPositionConfig = config("3 - UI", "Panel Position", new Vector3(1760f, 850f, 0f), "Set position of UI", false);
+            PortUI.PanelPositionConfig.SettingChanged += PortUI.OnPanelPositionConfigChange;
+            ShipmentManager.TransitByDistance = config("2 - Settings", "Time Per Meter", 2f, "Set seconds per meter for shipment transit");
             ShipmentManager.CurrencyConfig = config("2 - Settings", "Shipment Currency", "Coins", "Set item prefab to use as currency to ship items");
             ShipmentManager.CurrencyConfig.SettingChanged += (_, _) => ShipmentManager._currencyItem = null;
+            ShipmentManager.OverrideTransitTime = config("2 - Settings", "Override Transit Duration", Toggle.Off, "If on, transit time will be based off override instead of calculated based off distance");
+            ShipmentManager.TransitTime = config("2 - Settings", "Transit Duration", 1800f, "Set override transit duration in seconds, 1800 = 30min");
+            PortUI.BkgOption = config("3 - UI", "Background", PortUI.BackgroundOption.Opaque, "Set background type");
+            PortUI.BkgOption.SettingChanged += PortUI.OnBackgroundOptionChange;
             // this gets created after blueprints
             // it will iterate through children to find prefabs
             // and replace them
@@ -94,8 +101,9 @@ namespace MWL_Ports
                 if (blueprint.Location == null) return;
                 blueprint.Location.Setup();
                 blueprint.Location.Biome = Heightmap.Biome.All;
-                blueprint.Location.Placement.Altitude.Min = 0f;
-                blueprint.Location.Placement.Altitude.Max = 60f;
+                blueprint.Location.Placement.Altitude.Min = -10f;
+                blueprint.Location.Placement.Altitude.Max = 10f;
+                blueprint.Location.Placement.SlopeRotation = true;
                 blueprint.Location.Placement.ClearArea = true;
                 blueprint.Location.Placement.Quantity = 100;
                 blueprint.Location.Placement.Prioritized = true;
@@ -139,23 +147,91 @@ namespace MWL_Ports
             PortTrader.m_randomTalk.Add("A Human!", "Where did you come from ?", "What are you ?");
             
             // simple class to clone in-game assets
-            Clone piece_chest_wood = new Clone("piece_chest_wood", "port_chest_wood");
+            Clone piece_chest_wood = new Clone("piece_chest_wood", "MWL_port_chest_wood");
             piece_chest_wood.OnCreated += prefab =>
             {
+                var icon = prefab.GetComponent<Piece>().m_icon;
                 prefab.RemoveComponent<Piece>();
                 prefab.RemoveComponent<WearNTear>();
                 prefab.GetComponent<ZNetView>().m_persistent = false;
 
-                Manifest manifest = new Manifest("Wooden Shipment", prefab);
-                manifest.Requirements.Add("Wood", 10);
-                manifest.Requirements.Add("Coins", 5);
-                manifest.Requirements.Add("Resin", 5);
-                manifest.Requirements.Add("SurtlingCore", 1);
+                // current size 10
+                Manifest manifest = new Manifest("Wooden Shipment", prefab.GetComponent<Container>());
+                manifest.CostToShip = 50;
+                manifest.Recipe.Add("Wood", 10);
+                manifest.Recipe.Add("Resin", 5);
+                manifest.Icon = icon;
+            };
+            
+            Clone piece_chest_barrel = new Clone("piece_chest_barrel", "MWL_port_chest_barrel");
+            piece_chest_barrel.OnCreated += prefab =>
+            {
+                var icon = prefab.GetComponent<Piece>().m_icon;
+                prefab.RemoveComponent<Piece>();
+                prefab.RemoveComponent<WearNTear>();
+                prefab.GetComponent<ZNetView>().m_persistent = false;
+
+                // current size 12
+                Manifest manifest = new Manifest("Barrel Shipment", prefab.GetComponent<Container>());
+                manifest.CostToShip = 55;
+                manifest.Recipe.Add("Wood", 10);
+                manifest.Recipe.Add("BarrelRings", 1);
+                manifest.Icon = icon;
+            };
+            
+            Clone piece_chest = new Clone("piece_chest", "MWL_port_chest_finewood");
+            piece_chest.OnCreated += prefab =>
+            {
+                var icon = prefab.GetComponent<Piece>().m_icon;
+                prefab.RemoveComponent<Piece>();
+                prefab.RemoveComponent<WearNTear>();
+                prefab.GetComponent<ZNetView>().m_persistent = false;
+
+                // current size 24
+                Manifest manifest = new Manifest("Fine Shipment", prefab.GetComponent<Container>());
+                manifest.CostToShip = 100;
+                manifest.Recipe.Add("FineWood", 10);
+                manifest.Recipe.Add("Iron", 2);
+                manifest.Recipe.Add("BlackMetal", 6);
+                manifest.Icon = icon;
+            };
+            
+            Clone piece_chest_blackmetal = new Clone("piece_chest_blackmetal", "MWL_port_chest_blackmetal");
+            piece_chest_blackmetal.OnCreated += prefab =>
+            {
+                var icon = prefab.GetComponent<Piece>().m_icon;
+                prefab.RemoveComponent<Piece>();
+                prefab.RemoveComponent<WearNTear>();
+                prefab.GetComponent<ZNetView>().m_persistent = false;
+
+                // current size 32
+                Manifest manifest = new Manifest("Fuling Shipment", prefab.GetComponent<Container>());
+                manifest.CostToShip = 280;
+                manifest.Recipe.Add("FineWood", 10);
+                manifest.Recipe.Add("Tar", 2);
+                manifest.Recipe.Add("BlackMetal", 6);
+                manifest.Icon = icon;
+            };
+            
+            Clone TreasureChest_dvergrtower = new Clone("TreasureChest_dvergrtower", "MWL_port_chest_dvergr");
+            TreasureChest_dvergrtower.OnCreated += prefab =>
+            {
+                var icon = prefab.GetComponent<Piece>().m_icon;
+                prefab.RemoveComponent<Piece>();
+                prefab.RemoveComponent<WearNTear>();
+                prefab.GetComponent<ZNetView>().m_persistent = false;
                 
-                Manifest manifest1 = new Manifest("Wooden Shipment 2", prefab);
-                manifest1.Requirements.Add("Wood", 10);
-                manifest1.Requirements.Add("Coins", 5);
-                manifest1.Requirements.Add("Resin", 5);
+                // current size 8, let's change that
+                var container = prefab.GetComponent<Container>();
+                container.m_width = 8;
+                container.m_height = 5;
+                // new size 40
+                // this container has default items, remove
+                container.m_defaultItems.m_drops.Clear();
+                Manifest manifest = new Manifest("Dvergr Shipment", prefab.GetComponent<Container>());
+                manifest.CostToShip = 410;
+                manifest.Recipe.Add("YggdrasilWood", 10);
+                manifest.Recipe.Add("Copper", 2);
             };
             
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On,

@@ -18,20 +18,24 @@ namespace MWL_Ports;
 [PublicAPI]
 public class ShipmentManager : MonoBehaviour
 {
+    public static ConfigEntry<float> TransitByDistance = null!; 
+    public static ConfigEntry<string> CurrencyConfig = null!;
+    public static ConfigEntry<float> TransitTime = null!;
+    public static ConfigEntry<MWL_PortsPlugin.Toggle> OverrideTransitTime = null!;
+    
+    private static CustomSyncedValue<string> ServerSyncedShipments = new (MWL_PortsPlugin.ConfigSync, "MWL_SyncedShipments", "");
+    
     public static ShipmentManager? instance;
-    public static ConfigEntry<float> TransitDurationConfig = null!; 
+    
     private static string ShipmentFileName = "shipments.dat";
     private static string MWL_FolderName = "MWL_Ports";
     private static string MWL_FolderPath = Paths.ConfigPath + Path.DirectorySeparatorChar + MWL_FolderName;
     private static string GetFilePath(string worldName) => MWL_FolderPath + Path.DirectorySeparatorChar + worldName + "_" + ShipmentFileName;
     private const bool COMPRESS_DATA = true;
-    private static readonly CustomSyncedValue<string> ServerPortPositions = new(MWL_PortsPlugin.ConfigSync, "MWL_ServerPortPositions", "");
-    private static CustomSyncedValue<string>? ServerSyncedShipments;
     internal static Dictionary<string, Shipment> Shipments = new();
     private static readonly List<ZDO> TempZDO = new(); // server side
     private static HashSet<ZDO> TempZDOHashSet = new(); // client side
     public static readonly List<string> PrefabsToSearch = new();
-    public static ConfigEntry<string> CurrencyConfig = null!;
     public static event Action? OnShipmentsUpdated;
     
     public static ItemDrop.ItemData? _currencyItem;
@@ -49,18 +53,18 @@ public class ShipmentManager : MonoBehaviour
         }
     }
     
-    private WaitForSeconds _wait = new WaitForSeconds(10f);
-    private Coroutine? _sendZDOCoroutine;
+    // no need to create a new wait for seconds every time, so let's construct a static one here
+    private static WaitForSeconds _wait = new WaitForSeconds(10f);
+    // same for the coroutine, even though we only create one
+    // but might be some edge case where our plugin gets destroyed ??? who are these fools messing with our plugin ???
+    private static Coroutine? _sendZDOCoroutine;
+    
     private float m_checkTransitTimer;
     private float m_checkTransitInterval = 1f;
 
     public void Awake()
     {
         instance = this;
-        // can move this like above
-        // was not sure what kind of config sync you like to use
-        // so you have options when to create your custom sync
-        ServerSyncedShipments = new CustomSyncedValue<string>(MWL_PortsPlugin.ConfigSync, "MWL_SyncedShipments", "");
         ServerSyncedShipments.ValueChanged += OnClientUpdateShipments;
     }
 
@@ -302,12 +306,12 @@ public class ShipmentManager : MonoBehaviour
     public struct PortID
     {
         public string Name;
-        public string Guid;
+        public string GUID;
 
         public PortID(string guid, string name)
         {
             Name = name;
-            Guid = guid;
+            GUID = guid;
         }
     }
 }

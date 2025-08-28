@@ -25,8 +25,15 @@ public static class LoadPortUI
             Debug.LogWarning("PortUI is null");
             return;
         }
+        GameObject craftingPanel = __instance.m_crafting.gameObject;
+        PortUI.tooltip = craftingPanel.GetComponentInChildren<UITooltip>();
+        if (PortUI.tooltip == null)
+        {
+            Debug.LogWarning("Tooltip is null!!!");
+        }
         // attached it the HUD, so it was independent of the inventory
         // I prefer the HUD since that rarely gets hidden on me
+        
         GameObject? go = Object.Instantiate(panel, __instance.transform.parent.Find("HUD"));
         go.name = "PortUI";
         go.AddComponent<PortUI>();
@@ -37,8 +44,7 @@ public static class LoadPortUI
         // but no benefit, since no one is looking at our UI before they enter world
         var panelTexts = go.GetComponentsInChildren<Text>(true);
         var listItemTexts = PortUI.ListItem.GetComponentsInChildren<Text>(true);
-
-        var craftingPanel = __instance.m_crafting.gameObject;
+        
         go.CopySpriteAndMaterial(craftingPanel, "Panel/Selected", "selected_frame/selected (1)");
         go.CopySpriteAndMaterial(craftingPanel, "Panel/bkg", "Bkg");
         go.CopySpriteAndMaterial(craftingPanel, "Panel/TitlePanel/BraidLineHorisontalMedium (1)", "TitlePanel/BraidLineHorisontalMedium (1)");
@@ -55,6 +61,11 @@ public static class LoadPortUI
         go.CopySpriteAndMaterial(craftingPanel, "Panel/Tabs/Manifests", "TabsButtons/Craft");
         go.CopySpriteAndMaterial(craftingPanel, "Panel/Tabs/Manifests/Selected", "TabsButtons/Craft/Selected");
         go.CopyButtonState(craftingPanel, "Panel/Tabs/Manifests", "TabsButtons/Craft");
+        
+        go.CopySpriteAndMaterial(craftingPanel, "Panel/Tabs/Teleport", "TabsButtons/Craft");
+        go.CopySpriteAndMaterial(craftingPanel, "Panel/Tabs/Teleport/Selected", "TabsButtons/Craft/Selected");
+        go.CopyButtonState(craftingPanel, "Panel/Tabs/Teleport", "TabsButtons/Craft");
+        
         go.CopySpriteAndMaterial(craftingPanel, "Panel/Separator", "TabsButtons/TabBorder");
         go.CopySpriteAndMaterial(craftingPanel, "Panel/LeftPanel/Viewport", "RecipeList/Recipes");
         go.CopySpriteAndMaterial(craftingPanel, "Panel/Description", "Decription");
@@ -117,17 +128,21 @@ public static class InventoryGui_IsVisible_Patch
 
 public class PortUI : MonoBehaviour
 {
+    public enum BackgroundOption { Opaque, Transparent }
+    internal static ConfigEntry<BackgroundOption> BkgOption = null!;
     internal static readonly GameObject ListItem = AssetBundleManager.LoadAsset<GameObject>("portbundle", "ListItem")!;
-
+    internal static UITooltip? tooltip;
     public static ConfigEntry<Vector3> PanelPositionConfig = null!;
 
     private Image Selected = null!;
     private Image Background = null!;
+    private GameObject Darken = null!;
     private Text Topic = null!;
     private Tab PortTab = null!;
     private Tab ShipmentTab = null!;
     private Tab DeliveryTab = null!;
     private Tab ManifestTab = null!;
+    private Tab TeleportTab = null!;
     private RectTransform LeftPanelRoot = null!;
     private Image Icon = null!;
     private Button MainButton = null!;
@@ -140,26 +155,23 @@ public class PortUI : MonoBehaviour
     public Shipment? m_selectedDelivery;
     public Manifest? m_selectedManifest;
     private readonly List<TempListItem> m_tempListItems = new();
-    private readonly List<Tab> m_tabs = new();
     private TabOption m_currentTab = TabOption.Ports;
 
     private Action<float>? OnUpdate;
     private float m_portPinTimer;
     private static Minimap.PinData? m_tempPin;
+    private static Sprite? m_defaultIcon;
 
     private enum TabOption
     {
-        Ports, Shipments, Delivery, Manifest
+        Ports, Shipments, Delivery, Manifest, Teleport
     }
     public void Awake()
     {
         instance = this;
-        PanelPositionConfig.SettingChanged += (_, _) =>
-        {
-            transform.position = PanelPositionConfig.Value;
-        };
         Selected = transform.Find("Panel/Selected").GetComponent<Image>();
         Background = transform.Find("Panel/bkg").GetComponent<Image>();
+        Darken = transform.Find("Panel/darken").gameObject;
         Topic = transform.Find("Panel/TitlePanel/topic").GetComponent<Text>();
         Icon  = transform.Find("Panel/Description/Icon").GetComponent<Image>();
         MainButton = transform.Find("Panel/Description/SendButton").GetComponent<Button>();
@@ -168,6 +180,7 @@ public class PortUI : MonoBehaviour
         ShipmentTab = new Tab(transform.Find("Panel/Tabs/Shipment"));
         DeliveryTab = new Tab(transform.Find("Panel/Tabs/Delivery"));
         ManifestTab = new Tab(transform.Find("Panel/Tabs/Manifests"));
+        TeleportTab = new Tab(transform.Find("Panel/Tabs/Teleport"));
         LeftPanelRoot =  transform.Find("Panel/LeftPanel/Viewport/ListRoot").GetComponent<RectTransform>();
         Description = new RightPanel(
             transform.Find("Panel/Description/Name").GetComponent<Text>(), 
@@ -181,22 +194,31 @@ public class PortUI : MonoBehaviour
         Requirements.level.Icon = transform.Find("Panel/Description/Requirements/level/MinLevel").GetComponent<Image>();
         Requirements.level.Label = transform.Find("Panel/Description/Requirements/level/MinLevel/Text").GetComponent<Text>();
 
-        m_tabs.Add(PortTab, ShipmentTab, DeliveryTab, ManifestTab);
+        m_defaultIcon = Icon.sprite;
         PortTab.SetButton(OnPortTab);
         ShipmentTab.SetButton(OnShipmentTab);
         DeliveryTab.SetButton(OnDeliveryTab);
         ManifestTab.SetButton(OnManifestTab);
+        TeleportTab.SetButton(OnTeleportTab);
         MainButton.onClick.AddListener(OnMainButton);
         Description.SetMapButton(OnMapButton);
         
         PortTab.SetLabel(LocalKeys.PortLabel);
+        PortTab.SetTooltip("List of available ports");
         ShipmentTab.SetLabel(LocalKeys.ShipmentLabel);
+        ShipmentTab.SetTooltip("List of active shipments from this port");
         DeliveryTab.SetLabel(LocalKeys.DeliveryLabel);
+        DeliveryTab.SetTooltip("List of received deliveries");
         ManifestTab.SetLabel(LocalKeys.ManifestLabel);
-        transform.Find("Panel/Description/MapButton/Text").GetComponent<Text>().text =
-            Localization.instance.Localize(LocalKeys.OpenMapLabel);
+        ManifestTab.SetTooltip("Purchase shipment manifest");
+        TeleportTab.SetLabel(LocalKeys.TeleportLabel);
+        TeleportTab.SetTooltip("Teleport to ports");
+        transform.Find("Panel/Description/MapButton/Text").GetComponent<Text>().text = Localization.instance.Localize(LocalKeys.OpenMapLabel);
 
         Requirements.SetActive(false);
+        
+        SetBackground(BkgOption.Value);
+        SetPanelPosition(PanelPositionConfig.Value);
         
         Hide();
     }
@@ -221,6 +243,37 @@ public class PortUI : MonoBehaviour
         gameObject.SetActive(false);
         OnUpdate = null;
     }
+
+    public static void OnBackgroundOptionChange(object sender, EventArgs args)
+    {
+        if (PortUI.instance == null) return;
+        if (sender is not ConfigEntry<BackgroundOption> option) return;
+        instance.SetBackground(option.Value);
+    }
+
+    public void SetBackground(BackgroundOption option)
+    {
+        switch (option)
+        {
+            case BackgroundOption.Opaque:
+                Background.gameObject.SetActive(true);
+                Darken.SetActive(false);
+                break;
+            case BackgroundOption.Transparent:
+                Background.gameObject.SetActive(false);
+                Darken.SetActive(true);
+                break;
+        }
+    }
+
+    public static void OnPanelPositionConfigChange(object sender, EventArgs args)
+    {
+        if (PortUI.instance == null) return;
+        if (sender is not ConfigEntry<Vector3> config) return;
+        instance.SetPanelPosition(config.Value);
+    }
+
+    public void SetPanelPosition(Vector3 pos) => transform.position = pos;
     public void OnMapButton()
     {
         if (Description.MapInfo == null || !Minimap.instance) return;
@@ -230,7 +283,7 @@ public class PortUI : MonoBehaviour
         {
             Minimap.instance.RemovePin(m_tempPin);
         }
-        Minimap.PinData? pin = Minimap.instance.AddPin(pos, Minimap.PinType.Icon2, Description.MapInfo.ID.Name, false, false);
+        Minimap.PinData? pin = Minimap.instance.AddPin(pos, Minimap.PinType.Icon2, Description.MapInfo.portID.Name, false, false);
         Minimap.instance.ShowPointOnMap(pos);
         m_tempPin = pin;
         m_portPinTimer = 300f;
@@ -255,6 +308,7 @@ public class PortUI : MonoBehaviour
         Requirements.SetActive(false);
         m_selectedDestination = null;
         Description.Reset();
+        Icon.sprite = m_defaultIcon;
         MainButton.interactable = true;
         OnUpdate = null;
     }
@@ -270,6 +324,7 @@ public class PortUI : MonoBehaviour
         Description.Reset();
         MainButton.interactable = false;
         Requirements.SetActive(false);
+        Icon.sprite = m_defaultIcon;
         OnUpdate = null;
     }
 
@@ -285,6 +340,7 @@ public class PortUI : MonoBehaviour
         Description.Reset();
         MainButton.interactable = true;
         Requirements.SetActive(false);
+        Icon.sprite = m_defaultIcon;
         OnUpdate = null;
     }
 
@@ -300,6 +356,7 @@ public class PortUI : MonoBehaviour
         m_selectedManifest = null;
         MainButton.interactable = true;
         Requirements.SetActive(false);
+        Icon.sprite = m_defaultIcon;
         OnUpdate = null;
     }
 
@@ -315,6 +372,23 @@ public class PortUI : MonoBehaviour
         m_selectedDestination = null;
         m_selectedManifest = null;
         Requirements.SetActive(false);
+        Icon.sprite = m_defaultIcon;
+        OnUpdate = null;
+    }
+
+    public void OnTeleportTab()
+    {
+        m_currentTab = TabOption.Teleport;
+        if (TeleportTab.IsSelected) return;
+        TeleportTab.SetSelected(true);
+        LoadPortals();
+        SetMainButtonText("Teleport");
+        m_selectedDestination = null;
+        m_selectedManifest = null;
+        Description.Reset();
+        MainButton.interactable = false;
+        Requirements.SetActive(false);
+        Icon.sprite = m_defaultIcon;
         OnUpdate = null;
     }
 
@@ -323,9 +397,9 @@ public class PortUI : MonoBehaviour
         if (m_currentPort == null) return false;
         if (!Player.m_localPlayer) return false;
         if (Player.m_localPlayer.NoCostCheat()) return true;
-        var cost = m_currentPort.m_containers.GetCost();
-        var costItem = ShipmentManager.CurrencyItem?.m_shared.m_name ?? "$item_coins";
-        var count = Player.m_localPlayer.GetInventory().CountItems(costItem);
+        int cost = m_currentPort.m_containers.GetCost();
+        string costItem = ShipmentManager.CurrencyItem?.m_shared.m_name ?? "$item_coins";
+        int count = Player.m_localPlayer.GetInventory().CountItems(costItem);
         return count >= cost;
     }
 
@@ -335,45 +409,62 @@ public class PortUI : MonoBehaviour
         switch (m_currentTab)
         {
             case TabOption.Ports:
-                if (m_selectedDestination != null)
+                // port tab has 2 options, to exit UI, or send shipment
+                // depending on state of selected destination
+                if (m_selectedDestination == null) Hide();
+                else
                 {
-                    if (!m_currentPort.SendShipment(m_selectedDestination))
+                    if (m_currentPort.SendShipment(m_selectedDestination))
                     {
-                        Debug.LogWarning("Failed to send shipment, are containers empty ??");
+                        if (ZNet.instance && ZNet.instance.IsServer())
+                        {
+                            m_selectedDestination.Reload();
+                        }
+                        else ShipmentManager.OnShipmentsUpdated += m_selectedDestination.Reload;
+                        Player.m_localPlayer.GetInventory().RemoveItem(
+                            ShipmentManager.CurrencyItem?.m_shared.m_name ?? "$item_coins",
+                            m_currentPort.m_containers.GetCost());
+                        m_selectedDestination = null;
                     }
-                    else
-                    {
-                        m_selectedDestination.Reload();
-                        Player.m_localPlayer.GetInventory().RemoveItem(ShipmentManager.CurrencyItem?.m_shared.m_name ?? "$item_coins", m_currentPort.m_containers.GetCost());
-                    }
-                    m_selectedDestination = null;
                 }
-                else Hide();
                 break;
             case TabOption.Shipments:
                 Hide();
                 break;
             case TabOption.Delivery:
                 if (m_selectedDelivery == null) return;
-                m_currentPort.LoadDelivery(m_selectedDelivery.ShipmentID);
-                MainButton.interactable = false;
-                Description.Reset();
-                m_selectedDelivery = null;
-                OnUpdate = null;
+                if (m_currentPort.LoadDelivery(m_selectedDelivery))
+                {
+                    MainButton.interactable = false;
+                    Description.Reset();
+                    m_selectedDelivery = null;
+                    OnUpdate = null;
+                }
                 break;
             case TabOption.Manifest:
                 if (m_selectedManifest == null || !Player.m_localPlayer.HasRequirements(m_selectedManifest)) return;
                 if (m_currentPort.SpawnContainer(m_selectedManifest))
                 {
                     Player.m_localPlayer.Purchase(m_selectedManifest);
+                    // set manifest to purchased
                     m_selectedManifest.IsPurchased = true;
+                    // reload manifests to visually update list of manifests
+                    // with all manifests that are NOT purchased
                     LoadManifests();
+                    // we do this so there are no duplicate manifests being sent in a single shipment
+                    // to not overload delivery
                     Description.Reset();
                     MainButton.interactable = false;
                     Requirements.SetActive(false);
+                    Icon.sprite = m_defaultIcon;
                     OnUpdate = null;
                 }
                 m_selectedManifest = null;
+                break;
+            case TabOption.Teleport:
+                if (m_selectedDestination == null || !Player.m_localPlayer) return;
+                Player.m_localPlayer.TeleportTo(m_selectedDestination.position, Quaternion.identity, true);
+                Hide();
                 break;
         }
     }
@@ -382,6 +473,12 @@ public class PortUI : MonoBehaviour
     {
         ClearLeftPanel();
         foreach (ZDO port in ShipmentManager.GetPorts()) AddPort(port);
+    }
+
+    public void LoadPortals()
+    {
+        ClearLeftPanel();
+        foreach (ZDO port in ShipmentManager.GetPorts()) AddPortal(port);
     }
 
     public void LoadManifests()
@@ -394,7 +491,7 @@ public class PortUI : MonoBehaviour
     {
         ClearLeftPanel();
         if (m_currentPort == null) return;
-        var shipments = ShipmentManager.GetShipments(m_currentPort.m_portID.Guid);
+        var shipments = ShipmentManager.GetShipments(m_currentPort.m_portID.GUID);
         foreach (Shipment shipment in shipments)
         {
             AddShipment(shipment);
@@ -405,7 +502,7 @@ public class PortUI : MonoBehaviour
     {
         ClearLeftPanel();
         if (m_currentPort == null) return;
-        List<Shipment> deliveries = ShipmentManager.GetDeliveries(m_currentPort.m_portID.Guid);
+        List<Shipment> deliveries = ShipmentManager.GetDeliveries(m_currentPort.m_portID.GUID);
         foreach(Shipment? delivery in deliveries) AddDelivery(delivery);
     }
 
@@ -417,6 +514,7 @@ public class PortUI : MonoBehaviour
 
     public void AddManifest(Manifest manifest)
     {
+        if (!Player.m_localPlayer.IsKnownManifest(manifest)) return;
         if (manifest.IsPurchased) return;
         TempListItem item = new TempListItem(Instantiate(ListItem, LeftPanelRoot));
         item.SetIcon("VikingShip");
@@ -429,6 +527,8 @@ public class PortUI : MonoBehaviour
             MainButton.interactable = Player.m_localPlayer.HasRequirements(manifest);
             Requirements.SetActive(true);
             Requirements.LoadRequirements(manifest);
+            Requirements.SetLevel(manifest.CostToShip.ToString());
+            Icon.sprite = manifest.Icon;
             OnUpdate = dt => Requirements.Update(dt, Player.m_localPlayer);
         });
         m_tempListItems.Add(item);
@@ -481,15 +581,15 @@ public class PortUI : MonoBehaviour
         if (m_currentPort == null) return;
         if (port == m_currentPort.m_view.GetZDO()) return;
         Port.PortInfo info = new Port.PortInfo(port);
-        if (string.IsNullOrEmpty(info.ID.Name)) return;
+        if (string.IsNullOrEmpty(info.portID.Name)) return;
         TempListItem item = new TempListItem(Instantiate(ListItem, LeftPanelRoot));
         item.SetIcon(Minimap.instance.GetSprite(Minimap.PinType.Icon2), Color.white);
-        item.SetLabel($"{info.ID.Name}");
+        item.SetLabel($"{info.portID.Name}");
         item.SetButton(() =>
         {
             item.SetSelected(true);
             m_selectedDestination = info;
-            Description.SetName($"<color=orange>{info.ID.Name}</color> ({(int)info.GetDistance(Player.m_localPlayer)}m)");
+            Description.SetName($"<color=orange>{info.portID.Name}</color> ({(int)info.GetDistance(Player.m_localPlayer)}m)");
             string containerTooltip = m_currentPort.GetTooltip(); // store it here, to keep this part static
             // that way when we update the tooltip we do not need to regenerate the container tooltip again
             // since its more expensive to loop through temp containers and temp items
@@ -500,6 +600,14 @@ public class PortUI : MonoBehaviour
             Description.SetBodyText(info.GetTooltip() + "\n\n" + containerTooltip);
             Description.ShowMapButton(info);
             SetMainButtonText("Send Shipment");
+            bool hasItems = m_currentPort.m_containers.HasItems();
+            if (hasItems)
+            {
+                Requirements.SetActive(true);
+                Requirements.LoadCost(m_currentPort.m_containers);
+                Requirements.SetLevel(1.ToString());
+            }
+            
             MainButton.interactable = CanShip();
             float timer = 0f;
             OnUpdate = dt =>
@@ -512,6 +620,51 @@ public class PortUI : MonoBehaviour
                 if (timer <= 1f) return;
                 timer = 0.0f;
                 Description.SetBodyText(info.GetTooltip() + "\n\n" + containerTooltip);
+                if (hasItems)
+                {
+                    Requirements.Update(dt, Player.m_localPlayer);
+                }
+            };
+        });
+        m_tempListItems.Add(item);
+    }
+    
+    public void AddPortal(ZDO port)
+    {
+        if (m_currentPort == null) return;
+        if (port == m_currentPort.m_view.GetZDO()) return;
+        Port.PortInfo info = new Port.PortInfo(port);
+        if (string.IsNullOrEmpty(info.portID.Name)) return;
+        TempListItem item = new TempListItem(Instantiate(ListItem, LeftPanelRoot));
+        item.SetIcon(Minimap.instance.GetSprite(Minimap.PinType.Icon4), Color.white);
+        item.SetLabel($"{info.portID.Name}");
+        item.SetButton(() =>
+        {
+            item.SetSelected(true);
+            m_selectedDestination = info;
+            Description.SetName($"<color=orange>{info.portID.Name}</color> ({(int)info.GetDistance(Player.m_localPlayer)}m)");
+            Description.SetBodyText(info.GetTooltip());
+            Description.ShowMapButton(info);
+            SetMainButtonText("Teleport");
+            bool hasItems = m_currentPort.m_containers.HasItems();
+            if (hasItems)
+            {
+                Requirements.SetActive(true);
+                Requirements.LoadCost(m_currentPort.m_containers);
+                Requirements.SetLevel(1.ToString());
+            }
+            MainButton.interactable = true;
+            float timer = 0f;
+            OnUpdate = dt =>
+            {
+                bool shouldUpdate =
+                    info.shipments.Any(s => s.State == ShipmentState.InTransit) ||
+                    info.deliveries.Any(d => d.State == ShipmentState.InTransit);
+                if (!shouldUpdate) return;
+                timer += dt;
+                if (timer <= 1f) return;
+                timer = 0.0f;
+                Description.SetBodyText(info.GetTooltip());
             };
         });
         m_tempListItems.Add(item);
@@ -568,7 +721,7 @@ public class PortUI : MonoBehaviour
             SetIcon(item.GetIcon(), Color.white);
         }
 
-        public void SetIcon(bool enable)
+        public void ShowIcon(bool enable)
         {
             if (Icon == null) return;
             Icon.gameObject.SetActive(enable);
@@ -601,10 +754,12 @@ public class PortUI : MonoBehaviour
     
     private class Tab
     {
+        private static List<Tab> Tabs = new();
         private readonly Button Button;
         private readonly Text Label;
         private readonly GameObject Selected;
         private readonly Text SelectedLabel;
+        private readonly UITooltip? Tooltip;
         public bool IsSelected => Selected.activeInHierarchy;
 
         public Tab(Transform transform)
@@ -613,6 +768,15 @@ public class PortUI : MonoBehaviour
             Label = transform.Find("Text").GetComponent<Text>();
             Selected = transform.Find("Selected").gameObject;
             SelectedLabel = transform.Find("Selected/SelectedText").GetComponent<Text>();
+            Tabs.Add(this);
+            if (tooltip == null) return;
+            Tooltip = Button.gameObject.AddComponent<UITooltip>();
+            // anchor and fixed position only works for gamepad :(
+            // so perhaps we will just make our own UI Tooltip component
+            Tooltip.m_anchor = transform.Find("TooltipAnchor").GetComponent<RectTransform>();
+            Tooltip.m_fixedPosition = new Vector2(0f, 10f);
+            Tooltip.m_tooltipPrefab = tooltip.m_tooltipPrefab;
+            Tooltip.m_topic = "MWL_Ports_Tooltip";
         }
         
         public void SetButton(UnityAction action) => Button.onClick.AddListener(action);
@@ -623,10 +787,16 @@ public class PortUI : MonoBehaviour
             SelectedLabel.text = Localization.instance.Localize(label);
         }
 
+        public void SetTooltip(string tooltip)
+        {
+            if (Tooltip == null) return;
+            Tooltip.m_text = Localization.instance.Localize(tooltip);
+        }
+
         public void SetSelected(bool selected)
         {
             if (instance == null) return;
-            foreach(Tab? tab in instance.m_tabs) tab.Selected.SetActive(false);
+            foreach(Tab tab in Tabs) tab.Selected.SetActive(false);
             Selected.SetActive(selected);
         }
     }
@@ -707,6 +877,12 @@ public class PortUI : MonoBehaviour
         {
             Prefab = prefab;
         }
+
+        public void SetLevel(string text)
+        {
+            if (level.Label == null) return;
+            level.Label.text = Localization.instance.Localize(text);
+        }
         public void Add(Transform parent, string icon = "Icon", string name = "Name", string amount = "Amount")
         {
             Image Icon = parent.Find(icon).GetComponent<Image>();
@@ -733,10 +909,32 @@ public class PortUI : MonoBehaviour
             }
         }
 
+        public void LoadCost(Port.ContainerPlacement tempContainers)
+        {
+            var total = tempContainers.GetCost();
+            var currency = ShipmentManager.CurrencyItem 
+                           ?? ObjectDB.instance.GetItemPrefab("Coins").GetComponent<ItemDrop>().m_itemData;
+            var maxStack = currency.m_shared.m_maxStackSize;
+
+            foreach (RequirementItem item in items)
+            {
+                if (total <= 0)
+                {
+                    item.Hide();
+                    continue;
+                }
+
+                int amount = Mathf.Min(total, maxStack);
+                total -= amount;
+
+                item.Set(currency.GetIcon(), currency.m_shared.m_name, amount);
+            }
+        }
+        
         public void Update(float dt, Player? player)
         {
             if (player is null) return;
-            foreach (var item in items) item.Update(dt, player);
+            foreach (RequirementItem? item in items) item.Update(dt, player);
         }
         
         public void SetActive(bool active) => Prefab.SetActive(active);
@@ -770,8 +968,8 @@ public class PortUI : MonoBehaviour
             public void Update(float dt, Player player)
             {
                 if (SharedName == null) return;
-                var inventory = player.GetInventory();
-                var count = inventory.CountItems(SharedName);
+                Inventory inventory = player.GetInventory();
+                int count = inventory.CountItems(SharedName);
                 bool hasRequirement = Count <= count;
 
                 if (!hasRequirement)
@@ -800,4 +998,6 @@ public class PortUI : MonoBehaviour
             public Text? Label;
         }
     }
+    
+    
 }

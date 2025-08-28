@@ -145,6 +145,7 @@
         <Compile Include="src\LocalKeys.cs" />
         <Compile Include="src\Manifest.cs" />
         <Compile Include="src\Port.cs" />
+        <Compile Include="src\PortManager.cs" />
         <Compile Include="src\PortNames.cs" />
         <Compile Include="src\PortTrader.cs" />
         <Compile Include="src\PortUI.cs" />

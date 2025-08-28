@@ -26,8 +26,8 @@ public class Shipment
     public Shipment(ShipmentManager.PortID originPort, ShipmentManager.PortID destinationPort, float distance)
     {
         OriginPortName = originPort.Name;
-        OriginPortID = originPort.Guid;
-        DestinationPortID = destinationPort.Guid;
+        OriginPortID = originPort.GUID;
+        DestinationPortID = destinationPort.GUID;
         DestinationPortName = destinationPort.Name;
         ShipmentID = Guid.NewGuid().ToString();
         ArrivalTime = ZNet.instance.GetTimeSeconds() + CalculateDistanceTime(distance);
@@ -35,7 +35,11 @@ public class Shipment
 
     public static double CalculateDistanceTime(float distance)
     {
-        return ShipmentManager.TransitDurationConfig.Value * distance;
+        if (ShipmentManager.OverrideTransitTime.Value is MWL_PortsPlugin.Toggle.On)
+        {
+            return ShipmentManager.TransitTime.Value;
+        }
+        return ShipmentManager.TransitByDistance.Value * distance;
     }
 
     // used when receiving shipment from client
@@ -176,7 +180,7 @@ public enum ShipmentState
 [Serializable][PublicAPI][JsonObject(MemberSerialization.Fields)]
 public class ShipmentItem
 {
-    public string ManifestName;
+    public int ChestID;
     public string ItemName;
     public int Stack;
     public float Durability;
@@ -187,9 +191,9 @@ public class ShipmentItem
     public Dictionary<string, string> CustomData;
     public float Weight;
     public string SharedName;
-    public ShipmentItem(string chestID, ItemDrop.ItemData item)
+    public ShipmentItem(int chestID, ItemDrop.ItemData item)
     {
-        ManifestName = chestID;
+        ChestID = chestID;
         ItemName = item.m_dropPrefab.name;
         Stack = item.m_stack;
         Durability = item.m_durability;
@@ -197,9 +201,9 @@ public class ShipmentItem
         Variant = item.m_variant;
         CrafterID = item.m_crafterID;
         CrafterName = item.m_crafterName;
-        CustomData = item.m_customData;
         Weight = item.m_shared.m_weight;
         SharedName = item.m_shared.m_name;
+        CustomData = item.m_customData;
     }
     /// <summary>
     /// Fixed food items having a valid SharedData
@@ -219,7 +223,7 @@ public class ShipmentItem
     
     public ShipmentItem(ZPackage pkg)
     {
-        ManifestName = pkg.ReadString();
+        ChestID = pkg.ReadInt();
         ItemName = pkg.ReadString();
         Stack = pkg.ReadInt();
         Durability = (float)pkg.ReadDouble();
@@ -240,7 +244,7 @@ public class ShipmentItem
 
     public void Write(ZPackage pkg)
     {
-        pkg.Write(ManifestName);
+        pkg.Write(ChestID);
         pkg.Write(ItemName);
         pkg.Write(Stack);
         pkg.Write((double)Durability);
