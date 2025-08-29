@@ -29,7 +29,6 @@ public class Manifest
         {
             if (string.IsNullOrEmpty(_creatureName) && DefeatKeyToCreatureMap.TryGetValue(RequiredDefeatKey, out var sharedName))
                 _creatureName = sharedName ?? string.Empty;
-            // cache result
             return _creatureName;
         }
     }
@@ -43,11 +42,8 @@ public class Manifest
             if (_defeatKeyToCreatureMap.Count > 0 || !ZNetScene.instance) return _defeatKeyToCreatureMap;
             foreach (GameObject prefab in ZNetScene.instance.m_prefabs)
             {
-                // find all characters
                 if (!prefab.TryGetComponent(out Character component)) continue;
-                // if they have a defeat key
                 if (string.IsNullOrEmpty(component.m_defeatSetGlobalKey)) continue;
-                // cache defeat key to shared name
                 string sharedName = component.m_name;
                 _defeatKeyToCreatureMap[component.m_defeatSetGlobalKey] = sharedName;
             }
@@ -72,9 +68,9 @@ public class Manifest
     {
         int size = Chest.m_width * Chest.m_height;
         sb.Clear();
-        if (!string.IsNullOrEmpty(CreatureName)) sb.Append($"\nRequired To Defeat: <color=yellow>{CreatureName}</color>");
-        sb.Append($"\nCapacity: <color=yellow>{size}</color>");
-        sb.Append($"\nCost To Ship: <color=yellow>{CostToShip}</color>");
+        if (!string.IsNullOrEmpty(CreatureName)) sb.Append($"\n{LocalKeys.RequiredToDefeat}: <color=yellow>{CreatureName}</color>");
+        sb.Append($"\n{LocalKeys.Capacity}: <color=yellow>{size}</color>");
+        sb.Append($"\n{LocalKeys.CostToShip}: <color=yellow>{CostToShip}</color>");
         return sb.ToString();
     }
 

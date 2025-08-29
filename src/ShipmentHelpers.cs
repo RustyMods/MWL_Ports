@@ -92,7 +92,7 @@ public static class ShipmentHelpers
         }
 
         Transform sourceChild;
-        if (string.IsNullOrWhiteSpace(sourceChildName))
+        if (!string.IsNullOrWhiteSpace(sourceChildName))
         {
             sourceChild = source.transform.Find(sourceChildName);
             if (sourceChild == null)
@@ -108,7 +108,7 @@ public static class ShipmentHelpers
 
         if (!sourceChild.TryGetComponent(out Button sourceButton))
         {
-            Debug.LogError($"CopyButtonSprite {sourceChild} missing Button component");
+            Debug.LogError($"CopyButtonSprite {sourceChild.name} missing Button component");
             return;
         }
         button.spriteState = sourceButton.spriteState;

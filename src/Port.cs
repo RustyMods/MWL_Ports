@@ -159,7 +159,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         if (m_containers.HasItems() || m_selectedDelivery == null) return;
         m_selectedDelivery.OnCollected();
         m_selectedDelivery = null;
-        if (m_currentHumanoid != null) m_currentHumanoid.Message(MessageHud.MessageType.Center, "Selected delivery marked as collected!");
+        if (m_currentHumanoid != null) m_currentHumanoid.Message(MessageHud.MessageType.Center, LocalKeys.DeliveryCollected);
         DestroyContainers();
     }
     public bool Interact(Humanoid user, bool hold, bool alt)
@@ -341,7 +341,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         public int GetCost()
         {
             List<Manifest> manifests = new();
-            foreach (var temp in Placements)
+            foreach (TempContainer? temp in Placements)
             {
                 if (temp.manifest == null) continue;
                 manifests.Add(temp.manifest);
@@ -363,9 +363,6 @@ public class Port : MonoBehaviour, Interactable, Hoverable
 
     public class TempContainer
     {
-        // class to manage spawning new containers
-        // to keep relevant information organized
-        // and keep the Spawn function within its own scope
         private readonly Transform transform;
         public Manifest? manifest;
         public bool IsSpawned => SpawnedContainer != null;
@@ -380,22 +377,16 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         {
             if (manifest == null) return null;
             int hash = manifest.ChestStableHashCode;
-            // had to create chest by setup ZDO first
             ZDO? zdo = ZDOMan.instance.CreateNewZDO(transform.position, hash);
-            // set all the data in the zdo
             zdo.Persistent = false;
             zdo.Type = ZDO.ObjectType.Default;
             zdo.Distant = false;
             zdo.SetPrefab(hash);
             zdo.SetRotation(transform.rotation);
             zdo.SetOwner(ZDOMan.GetSessionID());
-            // then tell znetscene to create object
             GameObject? chest = ZNetScene.instance.CreateObject(zdo);
-            // and use that return
             Container? container = chest.GetComponent<Container>();
-            // set temp container as spawned and hold reference
             SpawnedContainer = container;
-            // set manifest to purchased to remove from UI list
             manifest.IsPurchased = true;
             return container;
         }
@@ -433,11 +424,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             {
                 if (_estimatedDuration != 0 || PortUI.instance is null || PortUI.instance.m_currentPort is null) return _estimatedDuration;
                 float distance = Utils.DistanceXZ(PortUI.instance.m_currentPort.transform.position, position);
-                // calculate time by distance
-                // cache result
                 _estimatedDuration = Shipment.CalculateDistanceTime(distance);
-                // since our ports are static (not moving)
-                // no need to recalculate this
                 return _estimatedDuration;
             }
         }
@@ -446,9 +433,6 @@ public class Port : MonoBehaviour, Interactable, Hoverable
 
         public PortInfo(ZDO zdo)
         {
-            // cache information
-            // to use to manage selected destination
-            // and details about port
             portID = new ShipmentManager.PortID(zdo.GetString(PortVars.GUID), zdo.GetString(PortVars.Name));
             position = zdo.GetPosition();
             deliveries = ShipmentManager.GetDeliveries(portID.GUID);
@@ -477,27 +461,25 @@ public class Port : MonoBehaviour, Interactable, Hoverable
                     ? delivery.GetTimeToArrivalSeconds() 
                     : delivery.GetTimeToExpirationSeconds();
                 string time = Shipment.FormatTime(remainingTime);
-                sb.AppendFormat($"\n{LocalKeys.Origin}: <color=orange>{0}</color> (<color=yellow>{1}</color>{2})", delivery.OriginPortName, delivery.State.ToKey(), string.IsNullOrEmpty(time) ? "" : $", {time}");
+                sb.AppendFormat("\n{3}: <color=orange>{0}</color> (<color=yellow>{1}</color>{2})", delivery.OriginPortName, delivery.State.ToKey(), string.IsNullOrEmpty(time) ? "" : $", {time}", LocalKeys.Origin);
             }
-            sb.Append($"\n\nShipments (<color=yellow>{shipments.Count}</color>): ");
+            sb.Append($"\n\n{LocalKeys.Shipments} (<color=yellow>{shipments.Count}</color>): ");
             foreach (Shipment? shipment in shipments)
             {
                 double remainingTime = shipment.State == ShipmentState.InTransit 
                     ? shipment.GetTimeToArrivalSeconds() 
                     : shipment.GetTimeToExpirationSeconds();
                 string time = Shipment.FormatTime(remainingTime);
-                sb.AppendFormat("\nDestination: <color=orange>{0}</color> (<color=yellow>{1}</color>{2})", shipment.DestinationPortName, shipment.State.ToKey(), string.IsNullOrEmpty(time) ? "" : $", {time}");
+                sb.AppendFormat("\n{3}: <color=orange>{0}</color> (<color=yellow>{1}</color>{2})", shipment.DestinationPortName, shipment.State.ToKey(), string.IsNullOrEmpty(time) ? "" : $", {time}", LocalKeys.Destination);
             }
             return sb.ToString();
         }
     }
     private static class PortVars
     {
-        // organization sake to manage Port ZDO variables
         public static readonly int Name = "PortName".GetStableHashCode();
         public static readonly int GUID = "PortGUID".GetStableHashCode();
         public static readonly int Items = "PortItems".GetStableHashCode();
         public static readonly int TraderName = "PortTraderName".GetStableHashCode();
-        
     }
 }

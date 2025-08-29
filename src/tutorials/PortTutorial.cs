@@ -2,6 +2,7 @@
 using System.IO;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace MWL_Ports.tutorials;
 
@@ -24,12 +25,40 @@ public class PortTutorial
 
         foreach (string? line in lines)
         {
-            sb.Append(line);
+            sb.Append(MarkdownToRichText(line));
             sb.Append('\n');
         }
         text = sb.ToString();
         tutorials.Add(this);
     }
+    
+    private static string MarkdownToRichText(string line)
+    {
+        // Bold: **text**
+        line = Regex.Replace(line, @"\*\*(.+?)\*\*", "<b>$1</b>");
+
+        // Italic: *text* or _text_
+        line = Regex.Replace(line, @"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", "<i>$1</i>");
+        line = Regex.Replace(line, "_(.+?)_", "<i>$1</i>");
+
+        // Inline code: `text`
+        line = Regex.Replace(line, "`(.+?)`", "<color=#d19a66><i>$1</i></color>");
+
+        // Headers: #, ##, ###
+        line = Regex.Replace(line, "^### (.+)$", "<size=18%><b>$1</b></size>");
+        line = Regex.Replace(line, "^## (.+)$", "<size=14%><b>$1</b></size>");
+        line = Regex.Replace(line, "^# (.+)$", "<size=10%><b>$1</b></size>");
+
+        // Links: [text](url) → just display text in blue
+        line = Regex.Replace(line, @"\[(.+?)\]\((.+?)\)", "<color=#61afef><u>$1</u></color>");
+        
+        // Unordered list: "- " → "• "
+        line = Regex.Replace(line, @"^\-\s+", "• ");
+
+
+        return line;
+    }
+
     
     public static void Setup()
     {
