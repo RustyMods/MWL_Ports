@@ -258,7 +258,7 @@ namespace MWL_Ports
             }
         }
 
-        private ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description,
+        public ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description,
             bool synchronizedSetting = true)
         {
             ConfigDescription extendedDescription =
@@ -273,7 +273,7 @@ namespace MWL_Ports
             return configEntry;
         }
 
-        private ConfigEntry<T> config<T>(string group, string name, T value, string description,
+        public ConfigEntry<T> config<T>(string group, string name, T value, string description,
             bool synchronizedSetting = true)
         {
             return config(group, name, value, new ConfigDescription(description), synchronizedSetting);

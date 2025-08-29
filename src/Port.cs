@@ -251,7 +251,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         if (!m_containers.HasItems()) return "";
         StringBuilder sb = new StringBuilder();
         sb.Append($"{LocalKeys.CurrentShipments}:");
-        sb.Append($"\n{LocalKeys.Cost}: <color=orange>{ShipmentManager.CurrencyItem?.m_shared.m_name ?? "$item_coins"}</color> <color=yellow>x{m_containers.GetCost()}</color>");
+        sb.Append($"\n{LocalKeys.Cost}: <color=orange>{ShipmentManager.CurrencyItem?.m_itemData.m_shared.m_name ?? "$item_coins"}</color> <color=yellow>x{m_containers.GetCost()}</color>");
         sb.Append($"\n{m_tempItems.GetTooltip()}");
         return sb.ToString();
     }

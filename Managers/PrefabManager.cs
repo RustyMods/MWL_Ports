@@ -52,6 +52,7 @@ public static class PrefabManager
         foreach(var location in LocationManager.CustomLocation.locations.Values) location.Setup();
         foreach(var blueprint in Blueprints.Values) blueprint.Create();
         foreach(var location in BlueprintLocations.Values) location.Create();
+        foreach(var manifest in Manifest.Manifests.Values) manifest.Setup();
         SoftAssetLoader.AddBlueprintSoftReferences();
     }
 }

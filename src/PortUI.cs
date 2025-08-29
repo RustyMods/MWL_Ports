@@ -456,7 +456,7 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
         if (m_currentPort == null || !Player.m_localPlayer) return false;
         if (Player.m_localPlayer.NoCostCheat()) return true;
         int cost = m_currentPort.m_containers.GetCost();
-        string costItem = ShipmentManager.CurrencyItem?.m_shared.m_name ?? "$item_coins";
+        string costItem = ShipmentManager.CurrencyItem?.m_itemData.m_shared.m_name ?? "$item_coins";
         int count = Player.m_localPlayer.GetInventory().CountItems(costItem);
         return count >= cost;
     }
@@ -481,7 +481,7 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
                         }
                         else ShipmentManager.OnShipmentsUpdated += m_selectedDestination.Reload;
                         Player.m_localPlayer.GetInventory().RemoveItem(
-                            ShipmentManager.CurrencyItem?.m_shared.m_name ?? "$item_coins",
+                            ShipmentManager.CurrencyItem?.m_itemData.m_shared.m_name ?? "$item_coins",
                             m_currentPort.m_containers.GetCost());
                         m_selectedDestination = null;
                         OnSentShipment?.Invoke();
@@ -1023,7 +1023,7 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
                 }
                 else
                 {
-                    item.Set(requirement.Item.GetIcon(), requirement.Item.m_shared.m_name, requirement.Amount);
+                    item.Set(requirement.Item.m_itemData.GetIcon(), requirement.Item.m_itemData.m_shared.m_name, requirement.Amount);
                 }
             }
         }
@@ -1031,7 +1031,7 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
         public void LoadCost(Port.ContainerPlacement tempContainers)
         {
             int total = tempContainers.GetCost();
-            ItemDrop.ItemData? currency = ShipmentManager.CurrencyItem ?? ObjectDB.instance.GetItemPrefab("Coins").GetComponent<ItemDrop>().m_itemData;
+            ItemDrop.ItemData? currency = ShipmentManager.CurrencyItem?.m_itemData ?? ObjectDB.instance.GetItemPrefab("Coins").GetComponent<ItemDrop>().m_itemData;
             int maxStack = currency.m_shared.m_maxStackSize;
 
             foreach (RequirementItem item in items)
@@ -1055,17 +1055,17 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
             {
                 new Manifest.Requirement()
                 {
-                    Item = ShipmentManager.CurrencyItem ??  ObjectDB.instance.GetItemPrefab("Coins").GetComponent<ItemDrop>().m_itemData,
+                    Item = ShipmentManager.CurrencyItem ??  ObjectDB.instance.GetItemPrefab("Coins").GetComponent<ItemDrop>(),
                     Amount = Mathf.FloorToInt(destination.GetDistance(Player.m_localPlayer) / 2)
                 },
                 new Manifest.Requirement()
                 {
-                    Item = ObjectDB.instance.GetItemPrefab("SurtlingCore").GetComponent<ItemDrop>().m_itemData,
+                    Item = ObjectDB.instance.GetItemPrefab("SurtlingCore").GetComponent<ItemDrop>(),
                     Amount = 2
                 },
                 new Manifest.Requirement()
                 {
-                    Item = ObjectDB.instance.GetItemPrefab("GreydwarfEye").GetComponent<ItemDrop>().m_itemData,
+                    Item = ObjectDB.instance.GetItemPrefab("GreydwarfEye").GetComponent<ItemDrop>(),
                     Amount = 10
                 }
             };
@@ -1079,7 +1079,7 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
                 }
 
                 Manifest.Requirement data = requirements[i];
-                item.Set(data.Item.GetIcon(), data.Item.m_shared.m_name, data.Amount);
+                item.Set(data.Item.m_itemData.GetIcon(), data.Item.m_itemData.m_shared.m_name, data.Amount);
             }
         }
         

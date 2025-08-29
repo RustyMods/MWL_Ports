@@ -39,8 +39,8 @@ public class ShipmentManager : MonoBehaviour
     public static readonly List<string> PrefabsToSearch = new();
     public static event Action? OnShipmentsUpdated;
     
-    public static ItemDrop.ItemData? _currencyItem;
-    public static ItemDrop.ItemData? CurrencyItem
+    public static ItemDrop? _currencyItem;
+    public static ItemDrop? CurrencyItem
     {
         get
         {
@@ -48,7 +48,7 @@ public class ShipmentManager : MonoBehaviour
             if (!ObjectDB.instance) return null;
             if (ObjectDB.instance.GetItemPrefab(CurrencyConfig.Value) is { } itemPrefab && itemPrefab.TryGetComponent(out ItemDrop component))
             {
-                _currencyItem = component.m_itemData;
+                _currencyItem = component;
             }
             return _currencyItem;
         }

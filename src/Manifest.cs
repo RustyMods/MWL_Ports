@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using BepInEx.Configuration;
 using JetBrains.Annotations;
 using MWL_Ports.Managers;
 using UnityEngine;
@@ -18,7 +19,8 @@ public class Manifest
     public string RequiredDefeatKey = "";
     public int CostToShip = 50;
     public Sprite? Icon;
-
+    public ManifestConfigs configs = new();
+    
     public bool IsPurchased;
     private static StringBuilder sb = new StringBuilder();
 
@@ -63,6 +65,32 @@ public class Manifest
         }
         Manifests[ChestStableHashCode] = this;
     }
+
+    internal void Setup()
+    {
+        configs.CostToShip = MWL_PortsPlugin.instance.config(Name, "Cost To Ship", CostToShip, "Set cost to ship manifest");
+        configs.CostToShip.SettingChanged += (_, _) =>
+        {
+            CostToShip = configs.CostToShip.Value;
+        };
+        configs.RequiredDefeatKey = MWL_PortsPlugin.instance.config(Name, "Required Defeat Key", RequiredDefeatKey, "Set required key");
+        configs.RequiredDefeatKey.SettingChanged += (_, _) =>
+        {
+            RequiredDefeatKey = configs.RequiredDefeatKey.Value;
+        };
+        configs.Recipe = MWL_PortsPlugin.instance.config(Name, "Recipe", Recipe.ToString(), "Set recipe");
+        configs.Recipe.SettingChanged += (_, _) =>
+        {
+            string[] config = configs.Recipe.Value.Split(',');
+            Recipe.Requirements.Clear();
+            foreach (string item in config)
+            {
+                string[] parts = item.Split(':');
+                if (parts.Length != 2) continue;
+                Recipe.Add(parts[0], int.TryParse(parts[1], out int amount) ? amount : 1);
+            }
+        };
+    }
     
     public string GetTooltip()
     {
@@ -78,6 +106,13 @@ public class Manifest
     {
         foreach (Manifest manifest in Manifests.Values) manifest.IsPurchased = false;
     }
+
+    public class ManifestConfigs
+    {
+        public ConfigEntry<string>? RequiredDefeatKey;
+        public ConfigEntry<int>? CostToShip;
+        public ConfigEntry<string>? Recipe;
+    }
     
     public class ManifestRecipe
     {
@@ -90,15 +125,17 @@ public class Manifest
             if (!itemPrefab.TryGetComponent(out ItemDrop component)) return;
             Requirements.Add(new Requirement()
             {
-                Item = component.m_itemData,
+                Item = component,
                 Amount = amount
             });
         }
+
+        public override string ToString() => string.Join(",", Requirements.Select(req => $"{req.Item.name}:{req.Amount}"));
     }
     
     public record struct Requirement
     {
-        public ItemDrop.ItemData Item;
+        public ItemDrop Item;
         public int Amount;
     }
 }
@@ -114,7 +151,7 @@ public static class ManifestHelpers
     public static bool IsKnownManifest(this Player player, Manifest manifest)
     {
         if (player.NoCostCheat()) return true;
-        return manifest.Recipe.Requirements.All(requirement => player.IsKnownMaterial(requirement.Item.m_shared.m_name));
+        return manifest.Recipe.Requirements.All(requirement => player.IsKnownMaterial(requirement.Item.m_itemData.m_shared.m_name));
     }
 
     public static void Purchase(this Player player, Manifest manifest)
@@ -124,7 +161,7 @@ public static class ManifestHelpers
             Inventory inventory =  player.GetInventory();
             foreach (var requirement in manifest.Recipe.Requirements)
             {
-                inventory.RemoveItem(requirement.Item.m_shared.m_name, requirement.Amount);
+                inventory.RemoveItem(requirement.Item.m_itemData.m_shared.m_name, requirement.Amount);
             }
         }
         manifest.IsPurchased = true;
@@ -142,7 +179,7 @@ public static class ManifestHelpers
         Inventory inventory = player.GetInventory();
         foreach (Manifest.Requirement requirement in manifest.Recipe.Requirements)
         {
-            var count = inventory.CountItems(requirement.Item.m_shared.m_name);
+            var count = inventory.CountItems(requirement.Item.m_itemData.m_shared.m_name);
             if (count >= requirement.Amount) continue;
             return false;
         }
