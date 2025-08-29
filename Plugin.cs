@@ -39,7 +39,7 @@ namespace MWL_Ports
             DontDestroyOnLoad(root);
             root.SetActive(false);
             
-            PortNames.Setup();
+            // PortNames.Setup();
             Commands.Setup();
             
             // make shipment manager a monobehavior to keep functions within it's scope while taking advantages of monobehaviors
@@ -231,6 +231,8 @@ namespace MWL_Ports
                 manifest.Recipe.Add("YggdrasilWood", 10);
                 manifest.Recipe.Add("Copper", 2);
             };
+
+            PortUI.PortTutorial.Setup();
             
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On,
                 "If on, the configuration is locked and can be changed by server admins only.");

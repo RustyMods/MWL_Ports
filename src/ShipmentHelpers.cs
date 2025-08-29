@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using JetBrains.Annotations;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,7 +11,7 @@ public static class ShipmentHelpers
 {
     public static void Add(this List<ShipmentItem> list, int chestID, ItemDrop.ItemData item)
     {
-        list.Add(new  ShipmentItem(chestID, item));
+        list.Add(new ShipmentItem(chestID, item));
     }
 
     public static void Add(this List<ShipmentItem> list, params Container[] containers)
@@ -29,9 +30,10 @@ public static class ShipmentHelpers
         }
     }
 
+    [Obsolete]
     public static void EmptyAll(this Container[] containers)
     {
-        foreach (var container in containers)
+        foreach (Container container in containers)
         {
             container.GetInventory().RemoveAll();
         }
@@ -56,7 +58,7 @@ public static class ShipmentHelpers
         }
         catch
         {
-            Debug.LogWarning("Failed to find " + childName + " or " + sourceChildName) ;
+            MWL_PortsPlugin.MWL_PortsLogger.LogDebug("Failed to find " + childName + " or " + sourceChildName) ;
         }
     }
     
@@ -70,7 +72,7 @@ public static class ShipmentHelpers
         }
         catch
         {
-            Debug.LogWarning("Failed to find " + childName + " or " + sourceChildName) ;
+            MWL_PortsPlugin.MWL_PortsLogger.LogDebug("Failed to find " + childName + " or " + sourceChildName) ;
         }
     }
 

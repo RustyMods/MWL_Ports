@@ -33,7 +33,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             }
         }
         // get the name from ZDO, if it does not exist, use random name
-        m_name = m_view.GetZDO().GetString(PortVars.Name, PortNames.GetRandomName());
+        m_name = m_view.GetZDO().GetString(PortVars.Name, NameGenerator.GenerateName());
         // get the Guid from ZDO, if it does not exist, generate a new one
         m_portID.GUID = m_view.GetZDO().GetString(PortVars.GUID, Guid.NewGuid().ToString());
         // save it within our PortID struct
@@ -72,7 +72,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         // make sure znetview is valid before trying to save data to it
         if (!m_view.IsValid())
         {
-            Debug.LogWarning("ZNETVIEW not valid when trying to save items");
+            MWL_PortsPlugin.MWL_PortsLogger.LogDebug("ZNETVIEW not valid when trying to save items");
             return;
         }
         // has item checks spawned containers, if no spawned containers, returns false
@@ -135,8 +135,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             temp.manifest = manifest;
             // spawn container and rename container to manifest name
             // that way when they are saved to shipment, they can take container name (manifest name) ID
-            var container = temp.Spawn();
-            
+            Container? container = temp.Spawn();
             if (container == null) return false;
             container.GetInventory().m_onChanged = OnContainersChanged;
             return true;
@@ -196,12 +195,12 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             Container? container = m_containers.GetOrCreate(item.ChestID);
             if (container == null)
             {
-                Debug.LogWarning($"Failed to create container: {item.ChestID}, max container spawned ??");
+                MWL_PortsPlugin.MWL_PortsLogger.LogDebug($"Failed to create container: {item.ChestID}, max container spawned ??");
                 continue;
             }
             if (!item.AddItem(container))
             {
-                Debug.LogWarning("Failed to add item: " + item.ItemName);
+                MWL_PortsPlugin.MWL_PortsLogger.LogDebug("Failed to add item: " + item.ItemName);
             }
         }
         // reset callback
@@ -303,7 +302,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             }
             if (!Manifest.Manifests.TryGetValue(chestID, out Manifest manifest))
             {
-                Debug.LogWarning("Failed to find manifest: " + chestID);
+                MWL_PortsPlugin.MWL_PortsLogger.LogDebug("Failed to find manifest: " + chestID);
                 return null;
             }
             foreach (TempContainer? temp in Placements)
@@ -313,7 +312,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
                 return temp.Spawn();
             }
             // if null, then all temp containers are spawned
-            Debug.LogWarning("All container placements are used!");
+            MWL_PortsPlugin.MWL_PortsLogger.LogDebug("All container placements are used!");
             return null;
         }
 

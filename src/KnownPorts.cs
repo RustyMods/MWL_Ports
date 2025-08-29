@@ -7,7 +7,8 @@ namespace MWL_Ports;
 
 public static class KnownPorts
 {
-    private static SerializedGuid? localKnownPorts;
+    private const string CustomDataKey = "MWL_KnownPorts";
+    private static SerializedGuid? localKnownPorts; // cache the class
     
     [HarmonyPatch(typeof(Player), nameof(Player.Load))]
     private static class Player_Load_Patch
@@ -31,20 +32,26 @@ public static class KnownPorts
 
     private class SerializedGuid
     {
-        private const string CustomDataKey = "MWL_KnownPorts";
         private readonly List<string> GUIDs = new();
         public SerializedGuid(Player player)
         {
             if (!player.m_customData.TryGetValue(CustomDataKey, out string json)) return;
             if (string.IsNullOrEmpty(json)) return;
-            List<string>? list = JsonConvert.DeserializeObject<List<string>>(json);
-            if (list is null)
+            try
             {
-                player.m_customData.Remove(CustomDataKey);
+                List<string>? data = JsonConvert.DeserializeObject<List<string>>(json);
+                if (data is null)
+                {
+                    player.ResetKnownPorts();
+                }
+                else
+                {
+                    GUIDs = data;
+                }
             }
-            else
+            catch
             {
-                GUIDs = list;
+                player.ResetKnownPorts();
             }
         }
 
@@ -52,8 +59,7 @@ public static class KnownPorts
         {
             player.m_customData[CustomDataKey] = ToJson();
         }
-
-        private string ToJson() => JsonConvert.SerializeObject(this);
+        private string ToJson() => JsonConvert.SerializeObject(GUIDs);
         
         public bool IsKnownPort(ShipmentManager.PortID portID) => GUIDs.Contains(portID.GUID);
 
@@ -75,4 +81,6 @@ public static class KnownPorts
         localKnownPorts ??= new SerializedGuid(player);
         localKnownPorts.Add(portID);
     }
+
+    public static void ResetKnownPorts(this Player player) => player.m_customData.Remove(CustomDataKey);
 }

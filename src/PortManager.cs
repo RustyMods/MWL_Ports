@@ -15,7 +15,9 @@ public static class ZoneSystem_GenerateLocationsIfNeeded_Patch
     [UsedImplicitly]
     private static void Postfix()
     {
+        MWL_PortsPlugin.MWL_PortsLogger.LogDebug("Generating locations if needed");
         if (PortManager.instance == null) return;
+        MWL_PortsPlugin.MWL_PortsLogger.LogDebug("Invoking update port locations in 10s");
         PortManager.instance.Invoke(nameof(PortManager.UpdatePortLocations), 10f);
     }
 }
@@ -28,6 +30,7 @@ public class PortManager : MonoBehaviour
 
     public void Awake()
     {
+        MWL_PortsPlugin.MWL_PortsLogger.LogDebug("PortManager Awake");
         instance = this;
         ServerSyncedPortLocations.ValueChanged += () =>
         {
@@ -37,18 +40,16 @@ public class PortManager : MonoBehaviour
         };
     }
 
-    public static List<Vector3> GetPortLocations()
-    {
-        if (instance == null || locations == null) return new List<Vector3>();
-        return locations.ToVector();
-    }
+    public static List<PortLocation> GetPortLocations() => locations?.ports ?? new();
 
     public void UpdatePortLocations()
     {
         if (!ZNet.instance || !ZNet.instance.IsServer() || !ZoneSystem.instance) return;
-        var allLocations = ZoneSystem.instance.GetLocationList();
+        MWL_PortsPlugin.MWL_PortsLogger.LogDebug("Updating PortLocations");
+        Dictionary<Vector2i, ZoneSystem.LocationInstance>.ValueCollection? allLocations = ZoneSystem.instance.GetLocationList();
         List<ZoneSystem.LocationInstance> ports = allLocations.Where(location => location.m_location.m_group == "MWL_Ports").ToList();
         if (ports.Count == 0) return;
+        MWL_PortsPlugin.MWL_PortsLogger.LogDebug($"Registered {ports.Count} ports");
         locations = new PortLocations(ports);
         ServerSyncedPortLocations.Value = locations.ToJson();
     }
@@ -56,27 +57,41 @@ public class PortManager : MonoBehaviour
     [Serializable]
     public class PortLocations
     {
-        public List<SerializedVector> positions = new();
+        public List<PortLocation> ports = new();
 
         public PortLocations(List<ZoneSystem.LocationInstance> ports)
         {
-            foreach(var port in ports) positions.Add(new SerializedVector(port.m_position));
+            foreach (ZoneSystem.LocationInstance port in ports)
+            {
+                this.ports.Add(new PortLocation(port.m_location.m_prefabName, port.m_position, port.m_placed));
+            }
         }
 
         public PortLocations(string json)
         {
-            var data = JsonConvert.DeserializeObject<PortLocations>(json);
+            PortLocations? data = JsonConvert.DeserializeObject<PortLocations>(json);
             if (data == null) return;
-            positions = data.positions;
+            ports = data.ports;
+            MWL_PortsPlugin.MWL_PortsLogger.LogDebug($"Received {ports.Count} PortLocations from server");
         }
+        
+        public PortLocations(){}
 
         public string ToJson() => JsonConvert.SerializeObject(this);
+    }
 
-        public List<Vector3> ToVector()
+    [Serializable]
+    public class PortLocation
+    {
+        public string PrefabName;
+        public SerializedVector Position;
+        public bool IsPlaced;
+
+        public PortLocation(string prefabName, Vector3 position, bool isPlaced)
         {
-            List<Vector3> output = new();
-            foreach (var position in positions) output.Add(position.ToVector3());
-            return output;
+            PrefabName = prefabName;
+            Position = new SerializedVector(position);
+            IsPlaced = isPlaced;
         }
     }
 

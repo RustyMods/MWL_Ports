@@ -279,7 +279,7 @@ public class ShipmentManager : MonoBehaviour
         // share updated dictionary with all clients
         // save to disk
         Shipment newShipment = new Shipment(serializedShipment);
-        Debug.Log(newShipment.IsValid // make sure that the shipment is deserialized correctly
+        MWL_PortsPlugin.MWL_PortsLogger.LogDebug(newShipment.IsValid // make sure that the shipment is deserialized correctly
             ? $"Shipment from {senderName} registered!"
             : $"Shipment from {senderName} is invalid");
         if (newShipment.IsValid) UpdateShipments();
@@ -293,7 +293,7 @@ public class ShipmentManager : MonoBehaviour
         // and update all clients
         if (!Shipments.Remove(shipmentID))
         {
-            Debug.LogWarning($"{senderName} said that they collected shipment {shipmentID}, but not found in dictionary");
+            MWL_PortsPlugin.MWL_PortsLogger.LogDebug($"{senderName} said that they collected shipment {shipmentID}, but not found in dictionary");
         }
         else
         {

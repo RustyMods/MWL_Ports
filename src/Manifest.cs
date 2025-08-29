@@ -62,7 +62,7 @@ public class Manifest
         ChestStableHashCode = container.name.GetStableHashCode();
         if (Manifests.ContainsKey(ChestStableHashCode))
         {
-            Debug.LogWarning($"{Name}: {Chest.name} is already registered");
+            MWL_PortsPlugin.MWL_PortsLogger.LogDebug($"{Name}: {Chest.name} is already registered");
             return;
         }
         Manifests[ChestStableHashCode] = this;

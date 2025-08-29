@@ -31,9 +31,9 @@ public static class Commands
                 Minimap.instance.RemovePin(pin);
             }
             tempPins.Clear();
-            foreach (var vector in PortManager.GetPortLocations())
+            foreach (var port in PortManager.GetPortLocations())
             {
-                var pin = Minimap.instance.AddPin(vector, Minimap.PinType.Icon3, "port", false, false);
+                var pin = Minimap.instance.AddPin(port.Position.ToVector3(), Minimap.PinType.Icon3, port.PrefabName, false, false);
                 tempPins.Add(pin);
             }
         });

@@ -49,7 +49,7 @@ public class Shipment
         Shipment? data = JsonConvert.DeserializeObject<Shipment>(serializedShipment);
         if (data == null)
         {
-            Debug.LogWarning("[SERVER] Failed to parse shipment JSON");
+            MWL_PortsPlugin.MWL_PortsLogger.LogDebug("[SERVER] Failed to parse shipment JSON");
             IsValid = false;
             return;
         }
@@ -89,7 +89,7 @@ public class Shipment
             // if local client is server, simply remove from dictionary
             if (!ShipmentManager.Shipments.Remove(ShipmentID))
             {
-                Debug.LogWarning($"{Player.m_localPlayer.GetPlayerName()} said that they collected shipment {ShipmentID}, but not found in dictionary");
+                MWL_PortsPlugin.MWL_PortsLogger.LogDebug($"{Player.m_localPlayer.GetPlayerName()} said that they collected shipment {ShipmentID}, but not found in dictionary");
             }
             else
             {
