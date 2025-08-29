@@ -59,6 +59,8 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         // make sure to delete spawned containers
         // I set them as non-persistant, when I cloned original, so they should get deleted anyway
         DestroyContainers();
+        // TODO: check multiplayer, if a player leaves, does it affect another player still interacting with port ??
+        Manifest.ResetPurchasedManifests();
     }
 
     public void SaveItems()
@@ -103,7 +105,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         }
     }
 
-    public bool LoadSavedItems()
+    private bool LoadSavedItems()
     {
         // get the serialized items from ZDO
         string? data = m_view.GetZDO().GetString(PortVars.Items);
@@ -177,7 +179,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
     {
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.Append(m_traderName);
-        stringBuilder.Append("\n[<color=yellow><b>$KEY_Use</b></color>] Open");
+        stringBuilder.Append($"\n[<color=yellow><b>$KEY_Use</b></color>] {LocalKeys.Open}");
         return Localization.instance.Localize(stringBuilder.ToString());
     }
 
@@ -221,7 +223,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             // we do not want random containers that exist without being formatted to manifests
             // so stop loading delivery if current containers are active
             // that is, are spawned
-            if (m_currentHumanoid != null) m_currentHumanoid.Message(MessageHud.MessageType.Center, "Containers have items! cannot load delivery");
+            if (m_currentHumanoid != null) m_currentHumanoid.Message(MessageHud.MessageType.Center, LocalKeys.FailedToLoadDelivery);
             return false;
         }
         LoadItems(delivery.Items);
@@ -235,7 +237,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
     {
         if (!m_containers.HasItems())
         {
-            if (m_currentHumanoid != null) m_currentHumanoid.Message(MessageHud.MessageType.Center, "Tried to send shipment, but containers are empty !");
+            if (m_currentHumanoid != null) m_currentHumanoid.Message(MessageHud.MessageType.Center, LocalKeys.FailedToSend);
             return false;
         }
         // construct a new shipment
@@ -249,7 +251,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         DestroyContainers();
         m_tempItems.Clear();
         m_view.GetZDO().Set(PortVars.Items, ""); // make sure to tell ZDO that there are no items
-        if (m_currentHumanoid != null) m_currentHumanoid.Message(MessageHud.MessageType.Center, "Successfully sent shipment!");
+        if (m_currentHumanoid != null) m_currentHumanoid.Message(MessageHud.MessageType.Center, LocalKeys.SuccessfullySent);
         return true;
     }
 
@@ -259,8 +261,8 @@ public class Port : MonoBehaviour, Interactable, Hoverable
     {
         if (!m_containers.HasItems()) return "";
         StringBuilder sb = new StringBuilder();
-        sb.Append("Current Shipment:");
-        sb.Append($"\nCost: <color=orange>{ShipmentManager.CurrencyItem?.m_shared.m_name ?? "$item_coins"}</color> <color=yellow>x{m_containers.GetCost()}</color>");
+        sb.Append($"{LocalKeys.CurrentShipments}:");
+        sb.Append($"\n{LocalKeys.Cost}: <color=orange>{ShipmentManager.CurrencyItem?.m_shared.m_name ?? "$item_coins"}</color> <color=yellow>x{m_containers.GetCost()}</color>");
         sb.Append($"\n{m_tempItems.GetTooltip()}");
         return sb.ToString();
     }
@@ -274,9 +276,9 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         public string GetTooltip()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append($"\nNumber of items: <color=yellow>{GetTotalStack()}</color>");
-            sb.Append($"\nTotal Weight: <color=yellow>{GetTotalWeight():0.0}</color>");
-            sb.Append("\nContents:");
+            sb.Append($"\n{LocalKeys.NrOfItems}: <color=yellow>{GetTotalStack()}</color>");
+            sb.Append($"\n{LocalKeys.TotalWeight}: <color=yellow>{GetTotalWeight():0.0}</color>");
+            sb.Append($"\n{LocalKeys.Contents}:");
             foreach (var item in Items)
             {
                 sb.Append($"\n<color=orange>{item.SharedName}</color> x{item.Stack}");
@@ -440,7 +442,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             }
         }
 
-        private static readonly StringBuilder sb = new StringBuilder();
+        private static readonly StringBuilder sb = new ();
 
         public PortInfo(ZDO zdo)
         {
@@ -467,15 +469,15 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         {
             sb.Clear();
 
-            sb.Append($"Estimated Shipment Time: <color=yellow>{Shipment.FormatTime(EstimatedDuration)}</color>\n");
-            sb.Append($"\nDeliveries (<color=yellow>{deliveries.Count}</color>): ");
+            sb.Append($"{LocalKeys.EstimatedShipTime}: <color=yellow>{Shipment.FormatTime(EstimatedDuration)}</color>\n");
+            sb.Append($"\n{LocalKeys.Deliveries}(<color=yellow>{deliveries.Count}</color>): ");
             foreach (Shipment? delivery in deliveries)
             {
                 double remainingTime = delivery.State == ShipmentState.InTransit 
                     ? delivery.GetTimeToArrivalSeconds() 
                     : delivery.GetTimeToExpirationSeconds();
                 string time = Shipment.FormatTime(remainingTime);
-                sb.AppendFormat("\nOrigin: <color=orange>{0}</color> (<color=yellow>{1}</color>{2})", delivery.OriginPortName, delivery.State.ToKey(), string.IsNullOrEmpty(time) ? "" : $", {time}");
+                sb.AppendFormat($"\n{LocalKeys.Origin}: <color=orange>{0}</color> (<color=yellow>{1}</color>{2})", delivery.OriginPortName, delivery.State.ToKey(), string.IsNullOrEmpty(time) ? "" : $", {time}");
             }
             sb.Append($"\n\nShipments (<color=yellow>{shipments.Count}</color>): ");
             foreach (Shipment? shipment in shipments)

@@ -77,6 +77,11 @@ public class Manifest
         sb.Append($"\nCost To Ship: <color=yellow>{CostToShip}</color>");
         return sb.ToString();
     }
+
+    public static void ResetPurchasedManifests()
+    {
+        foreach (Manifest manifest in Manifests.Values) manifest.IsPurchased = false;
+    }
     
     public class ManifestRecipe
     {

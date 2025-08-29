@@ -45,45 +45,88 @@ public static class ShipmentHelpers
     
     public static void CopySpriteAndMaterial(this GameObject prefab, GameObject source, string childName, string sourceChildName = "")
     {
-        try
+        Transform to = prefab.transform.Find(childName);
+        if (to == null)
         {
-            Image? toImage = prefab.transform.Find(childName).GetComponent<Image>();
-            Image? fromImage = source.transform
-                .Find(string.IsNullOrWhiteSpace(sourceChildName) ? childName : sourceChildName)
-                .GetComponent<Image>();
-            toImage.sprite = fromImage.sprite;
-            toImage.material = fromImage.material;
-            toImage.color = fromImage.color;
-            toImage.type = fromImage.type;
+            Debug.LogError($"CopySpriteAndMaterial: couldn't find child {childName} on {prefab.name}");
+            return;
         }
-        catch
+
+        if (!to.TryGetComponent(out Image toImage))
         {
-            MWL_PortsPlugin.MWL_PortsLogger.LogDebug("Failed to find " + childName + " or " + sourceChildName) ;
+            Debug.LogError($"CopySpriteAndMaterial: couldn't find image on {to.name}");
+            return;
         }
+        
+        Transform from = string.IsNullOrWhiteSpace(sourceChildName) ? source.transform : source.transform.Find(sourceChildName);
+        if (from == null)
+        {
+            Debug.LogError($"CopySpriteAndMaterial: couldn't find child {sourceChildName} on {source.name}");
+            return;
+        }
+
+        if (!from.TryGetComponent(out Image fromImage))
+        {
+            Debug.LogError($"CopySpriteAndMaterial: couldn't find image on {from.name}");
+            return;
+        }
+        toImage.sprite = fromImage.sprite;
+        toImage.material = fromImage.material;
+        toImage.color = fromImage.color;
+        toImage.type = fromImage.type;
     }
     
     public static void CopyButtonState(this GameObject prefab, GameObject source, string childName, string sourceChildName = "")
     {
-        try
+        Transform? target = prefab.transform.Find(childName);
+        if (target == null)
         {
-            prefab.transform.Find(childName).GetComponent<Button>().spriteState =
-                source.transform.Find(string.IsNullOrWhiteSpace(sourceChildName) ? childName : sourceChildName)
-                    .GetComponent<Button>().spriteState;
+            Debug.LogError($"CopyButtonState failed to find {childName} on {prefab.name}");
+            return;
         }
-        catch
+
+        if (!target.TryGetComponent(out Button button))
         {
-            MWL_PortsPlugin.MWL_PortsLogger.LogDebug("Failed to find " + childName + " or " + sourceChildName) ;
+            Debug.LogError($"CopyButtonState failed to find Button component on {target.name}");
+            return;
         }
+
+        Transform sourceChild;
+        if (string.IsNullOrWhiteSpace(sourceChildName))
+        {
+            sourceChild = source.transform.Find(sourceChildName);
+            if (sourceChild == null)
+            {
+                Debug.LogError($"CopyButtonState failed to find {sourceChildName} on {source.name}");
+                return;
+            }
+        }
+        else
+        {
+            sourceChild = source.transform;
+        }
+
+        if (!sourceChild.TryGetComponent(out Button sourceButton))
+        {
+            Debug.LogError($"CopyButtonSprite {sourceChild} missing Button component");
+            return;
+        }
+        button.spriteState = sourceButton.spriteState;
     }
 
     public static void AddRange<T, V>(this Dictionary<T, V> dict, Dictionary<T, V> otherDict)
     {
-        foreach (var kvp in otherDict)
+        foreach (KeyValuePair<T, V> kvp in otherDict)
         {
             dict[kvp.Key] = kvp.Value;
         }
     }
 
+    /// <summary>
+    /// Check if item has icons, since ItemData <exception cref="ItemDrop.ItemData.GetIcon"></exception> does not check
+    /// </summary>
+    /// <param name="item"></param>
+    /// <returns></returns>
     public static bool IsValid(this ItemDrop.ItemData item)
     {
         return item.m_shared.m_icons.Length > 0;

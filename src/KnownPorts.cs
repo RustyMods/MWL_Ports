@@ -8,7 +8,7 @@ namespace MWL_Ports;
 public static class KnownPorts
 {
     private const string CustomDataKey = "MWL_KnownPorts";
-    private static SerializedGuid? localKnownPorts; // cache the class
+    private static SerializedGuid? localKnownPorts; // cache player known ports
     
     [HarmonyPatch(typeof(Player), nameof(Player.Load))]
     private static class Player_Load_Patch

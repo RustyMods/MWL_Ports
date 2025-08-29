@@ -13,7 +13,7 @@ public static class Commands
         {
             foreach (Shipment shipment in ShipmentManager.Shipments.Values)
             {
-                foreach (var log in shipment.LogPrint())
+                foreach (string? log in shipment.LogPrint())
                 {
                     Debug.Log(log);
                 }
@@ -38,11 +38,16 @@ public static class Commands
         ConsoleCommand clearPins = new ConsoleCommand("mwl_clear_ports", "removes port pins from map", args =>
         {
             if (!Minimap.instance) return;
-            foreach (var pin in tempPins)
-            {
-                Minimap.instance.RemovePin(pin);
-            }
+            foreach (Minimap.PinData? pin in tempPins) Minimap.instance.RemovePin(pin);
             tempPins.Clear();
         });
+
+        ConsoleCommand clearKnownPorts = new ConsoleCommand("mwl_clear_known_ports",
+            "removes known ports from player save",
+            args =>
+            {
+                if (!Player.m_localPlayer) return;
+                Player.m_localPlayer.ResetKnownPorts();
+            });
     }
 }

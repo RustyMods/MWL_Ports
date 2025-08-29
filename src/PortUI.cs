@@ -136,7 +136,15 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
     internal static GameObject? _tooltipPrefab;
     public static ConfigEntry<Vector3> PanelPositionConfig = null!;
     public static ConfigEntry<MWL_PortsPlugin.Toggle> UseTeleportTab = null!;
-
+    
+    public static PortUI? instance;
+    private static Minimap.PinData? m_tempPin; // let's keep this static so we only ever have one port pin on the map
+    
+    // fields set on awake, shouldn't change after
+    private float m_leftListMinHeight;
+    private static Sprite? m_defaultIcon;
+    private float m_listItemHeight;
+    
     private RectTransform m_rect = null!;
     private Image Selected = null!;
     private Image Background = null!;
@@ -156,24 +164,20 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
     private Text MainButtonText = null!;
     private RightPanel Description = null!;
     private Requirement Requirements = null!;
-    public static PortUI? instance;
-    public Port? m_currentPort;
-    public Port.PortInfo? m_selectedDestination;
-    public Shipment? m_selectedDelivery;
-    public Manifest? m_selectedManifest;
     private readonly List<TempListItem> m_tempListItems = new();
-    private TabOption m_currentTab = TabOption.Ports;
     private readonly List<Tab> Tabs = new();
+
+    public Port? m_currentPort;
+    private Port.PortInfo? m_selectedDestination;
+    public Shipment? m_selectedDelivery;
+    private Manifest? m_selectedManifest;
+    
+    private TabOption m_currentTab = TabOption.Ports;
+    private float m_portPinTimer;
 
     private Action<float>? OnUpdate;
     private Action? OnSentShipment;
-    private float m_portPinTimer;
-    private static Minimap.PinData? m_tempPin;
-    private static Sprite? m_defaultIcon;
-    private float m_leftListMinHeight;
-    private float itemHeight;
-
-    public enum TabOption
+    private enum TabOption
     {
         Ports, Shipments, Delivery, Manifest, Teleport
     }
@@ -181,7 +185,7 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
     public void Awake()
     {
         instance = this;
-        itemHeight = ListItem.GetComponent<RectTransform>().sizeDelta.y;
+        m_listItemHeight = ListItem.GetComponent<RectTransform>().sizeDelta.y;
         m_rect = GetComponent<RectTransform>();
         Selected = transform.Find("Panel/Selected").GetComponent<Image>();
         Background = transform.Find("Panel/bkg").GetComponent<Image>();
@@ -541,7 +545,7 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
     {
         int count = m_tempListItems.Count;
         float padding = LeftPanelLayout.spacing;
-        float totalItemHeight = count * itemHeight;
+        float totalItemHeight = count * m_listItemHeight;
         float totalSpacingHeight = Mathf.Max(0, count - 1) * padding;
         float newHeight = totalItemHeight + totalSpacingHeight;
         LeftPanelRoot.sizeDelta = new Vector2(LeftPanelRoot.sizeDelta.x, Mathf.Max(newHeight, m_leftListMinHeight));

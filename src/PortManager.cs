@@ -16,6 +16,7 @@ public static class ZoneSystem_GenerateLocationsIfNeeded_Patch
     private static void Postfix()
     {
         if (PortManager.instance == null) return;
+        // run our function just to make sure all locations are registered and ZNet is ready
         PortManager.instance.Invoke(nameof(PortManager.UpdatePortLocations), 10f);
     }
 }

@@ -208,9 +208,15 @@ public class ShipmentItem
     public int Variant;
     public long CrafterID;
     public string CrafterName;
-    public Dictionary<string, string> CustomData;
     public float Weight;
     public string SharedName;
+    public Dictionary<string, string> CustomData;
+    
+    /// <summary>
+    /// Use this to construct a new shipment to send to server
+    /// </summary>
+    /// <param name="chestID"></param>
+    /// <param name="item"></param>
     public ShipmentItem(int chestID, ItemDrop.ItemData item)
     {
         ChestID = chestID;
@@ -240,7 +246,10 @@ public class ShipmentItem
         item.m_customData = CustomData;
         return true;
     }
-    
+    /// <summary>
+    /// Use this constructor to read from ZDO
+    /// </summary>
+    /// <param name="pkg"></param>
     public ShipmentItem(ZPackage pkg)
     {
         ChestID = pkg.ReadInt();
@@ -262,6 +271,10 @@ public class ShipmentItem
         }
     }
 
+    /// <summary>
+    /// Use this to format shipment into pkg
+    /// </summary>
+    /// <param name="pkg"></param>
     public void Write(ZPackage pkg)
     {
         pkg.Write(ChestID);
@@ -275,7 +288,7 @@ public class ShipmentItem
         pkg.Write(SharedName);
         pkg.Write((double)Weight);
         pkg.Write(CustomData.Count);
-        foreach (var kvp in CustomData)
+        foreach (KeyValuePair<string, string> kvp in CustomData)
         {
             pkg.Write(kvp.Key);
             pkg.Write(kvp.Value);
