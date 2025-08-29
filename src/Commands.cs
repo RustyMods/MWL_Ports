@@ -22,18 +22,15 @@ public static class Commands
 
         ConsoleCommand ports = new ConsoleCommand("mwl_ports", "pins port locations on map", args =>
         {
-            // only displays ports that exist! (that have a ZDO)
-            // let me know if you want me to add the feature to display ports that have yet to be spawned
-            // ie: locations that have yet to be placed
             if (!Minimap.instance) return;
-            foreach (var pin in tempPins)
+            foreach (Minimap.PinData? pin in tempPins)
             {
                 Minimap.instance.RemovePin(pin);
             }
             tempPins.Clear();
-            foreach (var port in PortManager.GetPortLocations())
+            foreach (PortManager.PortLocation? port in PortManager.GetPortLocations())
             {
-                var pin = Minimap.instance.AddPin(port.Position.ToVector3(), Minimap.PinType.Icon3, port.PrefabName, false, false);
+                Minimap.PinData? pin = Minimap.instance.AddPin(port.Position.ToVector3(), Minimap.PinType.Icon3, port.PrefabName, false, false);
                 tempPins.Add(pin);
             }
         });

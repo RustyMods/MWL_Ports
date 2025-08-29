@@ -155,6 +155,7 @@
         <Compile Include="src\ShipmentHelpers.cs" />
         <Compile Include="src\ShipmentManager.cs" />
         <Compile Include="src\TraderNames.cs" />
+        <Compile Include="src\tutorials\PortTutorial.cs" />
         <Compile Include="src\WearNTearPatch.cs" />
         <Compile Include="VersionHandshake.cs"/>
     </ItemGroup>
@@ -171,6 +172,11 @@
         <Content Include="Libs\ServerSync.dll">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
+        <EmbeddedResource Include="src\tutorials\manifest.md" />
+        <EmbeddedResource Include="src\tutorials\port.md" />
+        <EmbeddedResource Include="src\tutorials\shipment.md" />
+        <EmbeddedResource Include="src\tutorials\delivery.md" />
+        <EmbeddedResource Include="src\tutorials\teleport.md" />
         <Content Include="UpdateManifest.ps1"/>
     </ItemGroup>
     <ItemGroup>

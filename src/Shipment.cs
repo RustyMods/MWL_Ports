@@ -159,7 +159,7 @@ public class Shipment
         StringBuilder stringBuilder = new();
         stringBuilder.Append($"Origin Port: <color=orange>{OriginPortName}</color>");
         stringBuilder.Append($"\nDestination Port:  <color=orange>{DestinationPortName}</color>");
-        stringBuilder.AppendFormat("\nState: <color=yellow>{0}</color>{1}\n", State, string.IsNullOrEmpty(time) ? "" : $" ({time})");
+        stringBuilder.AppendFormat("\nState: <color=yellow>{0}</color>{1}\n", State.ToKey(), string.IsNullOrEmpty(time) ? "" : $" ({time})");
         stringBuilder.Append("\nItems: ");
         foreach (ShipmentItem? shipmentItem in Items)
         {

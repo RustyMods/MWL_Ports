@@ -7,6 +7,7 @@ using BepInEx.Logging;
 using HarmonyLib;
 using JetBrains.Annotations;
 using MWL_Ports.Managers;
+using MWL_Ports.tutorials;
 using ServerSync;
 using UnityEngine;
 
@@ -234,7 +235,7 @@ namespace MWL_Ports
                 manifest.Recipe.Add("Copper", 2);
             };
 
-            PortUI.PortTutorial.Setup();
+            PortTutorial.Setup();
             
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On,
                 "If on, the configuration is locked and can be changed by server admins only.");

@@ -139,7 +139,7 @@ public static class ManifestHelpers
                 return false;
         }
         Inventory inventory = player.GetInventory();
-        foreach (var requirement in manifest.Recipe.Requirements)
+        foreach (Manifest.Requirement requirement in manifest.Recipe.Requirements)
         {
             var count = inventory.CountItems(requirement.Item.m_shared.m_name);
             if (count >= requirement.Amount) continue;

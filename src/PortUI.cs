@@ -7,6 +7,7 @@ using HarmonyLib;
 using JetBrains.Annotations;
 using Managers;
 using MWL_Ports.Managers;
+using MWL_Ports.tutorials;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
@@ -499,14 +500,13 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
                 break;
             case TabOption.Manifest:
                 if (m_selectedManifest == null || !Player.m_localPlayer.HasRequirements(m_selectedManifest)) return;
-                if (m_currentPort.SpawnContainer(m_selectedManifest))
+                if (m_currentPort.SpawnContainer(m_selectedManifest) is {} container)
                 {
                     Player.m_localPlayer.Purchase(m_selectedManifest);
                     // set manifest to purchased
                     m_selectedManifest.IsPurchased = true;
                     // reload manifests to visually update list of manifests
                     // with all manifests that are NOT purchased
-                    LoadManifests();
                     // we do this so there are no duplicate manifests being sent in a single shipment
                     // to not overload delivery
                     Description.ResetDescription();
@@ -514,6 +514,9 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
                     Requirements.SetActive(false);
                     Icon.sprite = m_defaultIcon;
                     OnUpdate = null;
+                    
+                    Player.m_localPlayer.SetLookDir(container.transform.position - Player.m_localPlayer.transform.position, 3.5f);
+                    Hide();
                 }
                 else
                 {
@@ -523,6 +526,11 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
                 break;
             case TabOption.Teleport:
                 if (m_selectedDestination == null || !Player.m_localPlayer) return;
+                if (!Player.m_localPlayer.IsTeleportable())
+                {
+                    Player.m_localPlayer.Message(MessageHud.MessageType.Center, "$msg_noteleport");
+                    return;
+                }
                 Player.m_localPlayer.TeleportTo(m_selectedDestination.position, Quaternion.identity, true);
                 Hide();
                 break;
@@ -1190,78 +1198,6 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
         {
             icon.sprite = sprite;
             icon.preserveAspect = true;
-        }
-    }
-    
-    public class PortTutorial
-    {
-        internal static readonly List<PortTutorial> tutorials = new();
-        public string text = string.Empty;
-        public readonly string label;
-        private PortTutorial(string label)
-        {
-            this.label = label;
-            tutorials.Add(this);
-        }
-
-        public static void Setup()
-        {
-            StringBuilder sb = new StringBuilder();
-            PortTutorial portTab = new PortTutorial("Port");
-            sb.Append("The <b>Port Tab</b> displays all ports known to the player, allowing them to view destinations, manage shipments, and plan deliveries.\n\n");
-            
-            sb.Append("<color=orange><b>1. Discover Destinations</b></color>\n");
-            sb.Append("<size=5>●</size> Destinations become available when a player interacts with a Port Manager.\n");
-            sb.Append("<size=5>●</size> Interacting with the manager adds the port as an available destination\n\n");
-
-            sb.Append("<color=orange><b>2. Purchase a Manifest</b></color>\n");
-            sb.Append("<size=5>●</size> To create a new container, you must purchase a <color=orange>manifest</color>.\n");
-            sb.Append("<size=5>●</size> Manifests represent the shipment you want to send.\n\n");
-
-            sb.Append("<color=orange><b>3. Load Items into the Manifest</b></color>\n");
-            sb.Append("<size=5>●</size> Add items to your manifest to prepare the shipment.\n");
-            sb.Append("<size=5>●</size> <color=yellow>Empty manifests cannot be sent.</color>\n");
-            sb.Append("<size=5>●</size> The contents will appear in the tooltip when selecting destination port\n\n");
-
-            sb.Append("<color=orange><b>4. Select a Destination</b></color>\n");
-            sb.Append("<size=5>●</size> Choose a <color=orange>destination port</color> from the Port Tab.\n");
-            sb.Append("<size=5>●</size> Tooltip will show: \n");
-            sb.Append("   <size=5>♦</size> Items in the manifest\n");
-            sb.Append("   <size=5>♦</size> Cost of shipment\n");
-            sb.Append("   <size=5>♦</size> Estimated time of arrival\n");
-            sb.Append("   <size=5>♦</size> Current shipments & deliveries at that port\n\n");
-
-            sb.Append("<color=orange><b>5. Send the Shipment</b></color>\n");
-            sb.Append("<size=5>●</size> Press the <color=yellow>[Send Shipment]</color> button.\n");
-            sb.Append("<size=5>●</size> The shipment is registered on the server.\n");
-            sb.Append("<size=5>●</size> The tooltip will update to confirm registration, depending on network latency.\n\n");
-
-            sb.Append("<color=orange><b>6. Monitor Deliveries</b></color>\n");
-            sb.Append("<size=5>●</size> On the destination port, check the Delivery Tab to see new deliveries appear.\n\n");
-
-            sb.Append("<color=yellow><b>Tips</b></color>\n");
-            sb.Append("<size=5>●</size> Always check that your manifest is loaded before sending.\n");
-            sb.Append("<size=5>●</size> Hover over destinations to view costs and estimated arrival times.\n");
-            sb.Append("<size=5>●</size> Plan shipments to optimize delivery times and costs.\n");
-            
-            portTab.text = sb.ToString();
-            sb.Clear();
-            
-            var manifestTab = new PortTutorial("Manifest");
-            manifestTab.text = sb.ToString();
-            sb.Clear();
-
-            var shipmentTab = new PortTutorial("Shipment");
-            shipmentTab.text = sb.ToString();
-            sb.Clear();
-            
-            var deliveryTab = new PortTutorial("Delivery");
-            deliveryTab.text = sb.ToString();
-            sb.Clear();
-            
-            var teleportTab = new PortTutorial("Teleport");
-            teleportTab.text = sb.ToString();
-            sb.Clear();
         }
     }
 }

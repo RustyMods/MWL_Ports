@@ -123,7 +123,8 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         // load the items into the containers
         return LoadItems(m_tempItems.Items);
     }
-    public bool SpawnContainer(Manifest manifest)
+    
+    public Container? SpawnContainer(Manifest manifest)
     {
         // modified to handle manifests
         // containers are dynamic instead of static objects
@@ -136,11 +137,11 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             // spawn container and rename container to manifest name
             // that way when they are saved to shipment, they can take container name (manifest name) ID
             Container? container = temp.Spawn();
-            if (container == null) return false;
+            if (container == null) return null;
             container.GetInventory().m_onChanged = OnContainersChanged;
-            return true;
+            return container;
         }
-        return false;
+        return null;
     }
     public void DestroyContainers()
     {
@@ -149,7 +150,6 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             temp.Destroy();
         }
     }
-
     public void OnContainersChanged()
     {
         if (ShipmentManager.instance == null) return;
@@ -160,7 +160,6 @@ public class Port : MonoBehaviour, Interactable, Hoverable
         if (m_currentHumanoid != null) m_currentHumanoid.Message(MessageHud.MessageType.Center, "Selected delivery marked as collected!");
         DestroyContainers();
     }
-    
     public bool Interact(Humanoid user, bool hold, bool alt)
     {
         // make sure PortUI is there if some weirdo used tools to destroy our UI ???
@@ -476,7 +475,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
                     ? delivery.GetTimeToArrivalSeconds() 
                     : delivery.GetTimeToExpirationSeconds();
                 string time = Shipment.FormatTime(remainingTime);
-                sb.AppendFormat("\nOrigin: <color=orange>{0}</color> (<color=yellow>{1}</color>{2})", delivery.OriginPortName, delivery.State, string.IsNullOrEmpty(time) ? "" : $", {time}");
+                sb.AppendFormat("\nOrigin: <color=orange>{0}</color> (<color=yellow>{1}</color>{2})", delivery.OriginPortName, delivery.State.ToKey(), string.IsNullOrEmpty(time) ? "" : $", {time}");
             }
             sb.Append($"\n\nShipments (<color=yellow>{shipments.Count}</color>): ");
             foreach (Shipment? shipment in shipments)
@@ -485,7 +484,7 @@ public class Port : MonoBehaviour, Interactable, Hoverable
                     ? shipment.GetTimeToArrivalSeconds() 
                     : shipment.GetTimeToExpirationSeconds();
                 string time = Shipment.FormatTime(remainingTime);
-                sb.AppendFormat("\nDestination: <color=orange>{0}</color> (<color=yellow>{1}</color>{2})", shipment.DestinationPortName, shipment.State, string.IsNullOrEmpty(time) ? "" : $", {time}");
+                sb.AppendFormat("\nDestination: <color=orange>{0}</color> (<color=yellow>{1}</color>{2})", shipment.DestinationPortName, shipment.State.ToKey(), string.IsNullOrEmpty(time) ? "" : $", {time}");
             }
             return sb.ToString();
         }
