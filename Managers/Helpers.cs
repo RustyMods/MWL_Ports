@@ -17,18 +17,11 @@ public static class Helpers
 
     internal static GameObject? GetPrefab(string prefabName)
     {
-        // first we check if znetscene is active, if so, then all prefabs should be found there
         if (ZNetScene.instance != null) return ZNetScene.instance.GetPrefab(prefabName);
-        // then we check fejd startup znetscene, if null, then this is being called too early
         if (_ZNetScene == null) return null;
-        // we can't use znetscene GetPrefab since that looks through the hash dictionary
-        // so we need to search using Find()
         GameObject? result = _ZNetScene.m_prefabs.Find(prefab => prefab.name == prefabName);
-        // if we find it, return it
         if (result != null) return result;
-        // check created blueprints that have yet to be registered to znetscene
         if (Blueprint.registeredPrefabs.TryGetValue(prefabName, out GameObject blueprint)) return blueprint;
-        // check clones that have yet to be registered to znetscene
         return Clone.registeredPrefabs.TryGetValue(prefabName, out GameObject clone) ? clone : result;
     }
     
@@ -39,7 +32,6 @@ public static class Helpers
     public static void RemoveComponent<T>(this GameObject go) where T : Component
     {
         if (!go.TryGetComponent(out T component)) return;
-        // use destroy immediate since Destroy() gets queued for the next frame, which might be too late
         Object.DestroyImmediate(component);
     }
 

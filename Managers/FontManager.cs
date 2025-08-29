@@ -45,11 +45,7 @@ public static class FontManager
 
     public static void OnFontChange(object sender, EventArgs args)
     {
-        // change the input to your config.Value
-        // if you want to allow users to choose a font
         Font? font = GetFont(FontOptions.AveriaSerifLibre);
-        // since we register all the texts to font manager
-        // we can loop over them and update
         foreach (var text in m_allTexts) text.Update(font);
     }
 
@@ -57,7 +53,7 @@ public static class FontManager
     {
         foreach (Text text in array)
         {
-            new TextFont(text, GetFont(FontOptions.AveriaSerifLibre)); // averia serif is my default font, since that is what valheim mostly uses
+            new TextFont(text, GetFont(FontOptions.AveriaSerifLibre));
         }
     }
 

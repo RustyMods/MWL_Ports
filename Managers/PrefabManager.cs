@@ -14,7 +14,6 @@ public static class PrefabManager
     internal static Dictionary<string, BlueprintLocation> BlueprintLocations = new();
     internal static List<Clone> Clones = new();
     
-    // static constructor, gets called first time PrefabManager is accessed
     static PrefabManager()
     {
         Harmony harmony = new("org.bepinex.helpers.MWL_Manager");
@@ -40,7 +39,7 @@ public static class PrefabManager
     {
         foreach (GameObject prefab in PrefabsToRegister)
         {
-            if (!prefab.GetComponent<ZNetView>()) continue; // make sure asset even needs to be registered to ZNetScene
+            if (!prefab.GetComponent<ZNetView>()) continue;
             __instance.m_prefabs.Add(prefab);
         }
     }

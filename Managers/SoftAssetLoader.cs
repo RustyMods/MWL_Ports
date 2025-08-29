@@ -23,7 +23,6 @@ public static class SoftAssetLoader
 	    if (!isReady())
 	    {
 		    Debug.LogWarning("[Location Manager] AssetBundle Loader is not ready");
-            // should be ready since we are patching postfix to OnInitCompleted, but who knows ???
 		    return;
 	    }
         _assetBundleLoader = __instance;
@@ -35,7 +34,6 @@ public static class SoftAssetLoader
 
     public static void AddBlueprintSoftReferences()
     {
-        // since blueprints are created during FejdStartup, we need to add their soft reference after they are created
         if (!isReady())
         {
             Debug.LogWarning("[Location Manager] AssetBundle Loader is not ready");

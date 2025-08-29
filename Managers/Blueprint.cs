@@ -22,7 +22,7 @@ public class Blueprint
     public Blueprint(GameObject prefab)
     {
         Prefab = Object.Instantiate(prefab, MWL_PortsPlugin.root.transform, false);
-        Prefab.name = prefab.name; // so our prefab isn't called MWL_Port_Location(Clone), even though it is! haha
+        Prefab.name = prefab.name;
         PrefabManager.Blueprints[Prefab.name] = this;
     }
 
@@ -31,8 +31,6 @@ public class Blueprint
         if (Loaded) return;
         List<GameObject> objectsToDestroy = new();
         List<BlueprintObject> objectsToAdd = new List<BlueprintObject>();
-        // first we get all the children we want to replace
-        // this is a surface search, first layer, not digging into the children of children
         foreach (Transform child in Prefab.transform)
         {
             if (!child.name.StartsWith("MOCK_")) continue;
@@ -46,7 +44,6 @@ public class Blueprint
                 objectsToDestroy.Add(child.gameObject);
             }
         }
-        // secondly we add the replacements
         foreach (BlueprintObject? obj in objectsToAdd)
         {
             GameObject clone = Object.Instantiate(obj.Original, Prefab.transform);
@@ -54,17 +51,12 @@ public class Blueprint
             clone.layer = obj.Mock.gameObject.layer;
             clone.transform.SetLocalPositionAndRotation(obj.Mock.localPosition, obj.Mock.localRotation);
         }
-        // finally we remove the mocks
         foreach (GameObject? obj in objectsToDestroy)
         { 
             Object.DestroyImmediate(obj);
         }
-        // invoke the on created event so we can uniquely modify prefab after its created
         OnCreated?.Invoke(this);
-        // register to a dictionary to use as reference
         registeredPrefabs[Prefab.name] = Prefab;
-        // make sure it does not run twice during same load
-        // that is, if a player logs in, logs out, logs in
         Loaded = true;
     }
     

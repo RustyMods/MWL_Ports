@@ -13,7 +13,7 @@ public class Shipment
 {
     public string OriginPortName = string.Empty;
     public string DestinationPortName = string.Empty;
-    public string OriginPortID = string.Empty; // Guid.ToString()
+    public string OriginPortID = string.Empty; 
     public string DestinationPortID = string.Empty;
     public string ShipmentID = string.Empty;
     public ShipmentState State = ShipmentState.Pending;
@@ -23,7 +23,6 @@ public class Shipment
 
     [NonSerialized] public bool IsValid = true;
     
-    // used by port to format data, then adds items, then calls SendToServer()
     public Shipment(ShipmentManager.PortID originPort, ShipmentManager.PortID destinationPort, float distance)
     {
         OriginPortName = originPort.Name;
@@ -44,7 +43,6 @@ public class Shipment
         return ShipmentManager.TransitByDistance.Value * distance;
     }
 
-    // used when receiving shipment from client
     public Shipment(string serializedShipment)
     {
         if (ShipmentManager.instance == null) return;
@@ -73,13 +71,11 @@ public class Shipment
         if (ShipmentManager.instance == null) return;
         if (ZNet.instance && ZNet.instance.IsServer())
         {
-            // if local client is server, then simply register to shipments, and update
             ShipmentManager.Shipments[ShipmentID]  = this;
             ShipmentManager.UpdateShipments();
         }
         else
         {
-            // else send data to server to manage
             ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.instance.GetServerPeerID(), nameof(ShipmentManager.RPC_ServerReceiveShipment), Player.m_localPlayer.GetPlayerName(), ToJson());
         }
     }
@@ -89,7 +85,6 @@ public class Shipment
         if (ShipmentManager.instance == null) return;
         if (ZNet.instance && ZNet.instance.IsServer())
         {
-            // if local client is server, simply remove from dictionary
             if (!ShipmentManager.Shipments.Remove(ShipmentID))
             {
                 MWL_PortsPlugin.MWL_PortsLogger.LogDebug($"{Player.m_localPlayer.GetPlayerName()} said that they collected shipment {ShipmentID}, but not found in dictionary");
@@ -101,7 +96,6 @@ public class Shipment
         }
         else
         {
-            // else send shipment ID to server to manage
             ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.instance.GetServerPeerID(), nameof(ShipmentManager.RPC_ServerShipmentCollected), Player.m_localPlayer.GetPlayerName(), ShipmentID);
         }
     }
@@ -211,12 +205,6 @@ public class ShipmentItem
     public float Weight;
     public string SharedName;
     public Dictionary<string, string> CustomData;
-    
-    /// <summary>
-    /// Use this to construct a new shipment to send to server
-    /// </summary>
-    /// <param name="chestID"></param>
-    /// <param name="item"></param>
     public ShipmentItem(int chestID, ItemDrop.ItemData item)
     {
         ChestID = chestID;
@@ -231,13 +219,6 @@ public class ShipmentItem
         SharedName = item.m_shared.m_name;
         CustomData = item.m_customData;
     }
-    /// <summary>
-    /// Fixed food items having a valid SharedData
-    /// Use Valheim inventory <see cref="Inventory.AddItem(string, int, int, int, long, string, bool)"/>
-    /// That way, it instantiates a new game object, grabs ItemDrop component, then destroys game object
-    /// </summary>
-    /// <param name="container"></param>
-    /// <returns></returns>
     public bool AddItem(Container container)
     {
         ItemDrop.ItemData? item = container.GetInventory().AddItem(ItemName, Stack, Quality, Variant, CrafterID, CrafterName);
@@ -246,10 +227,6 @@ public class ShipmentItem
         item.m_customData = CustomData;
         return true;
     }
-    /// <summary>
-    /// Use this constructor to read from ZDO
-    /// </summary>
-    /// <param name="pkg"></param>
     public ShipmentItem(ZPackage pkg)
     {
         ChestID = pkg.ReadInt();
@@ -270,11 +247,7 @@ public class ShipmentItem
             CustomData[pkg.ReadString()] = pkg.ReadString();
         }
     }
-
-    /// <summary>
-    /// Use this to format shipment into pkg
-    /// </summary>
-    /// <param name="pkg"></param>
+    
     public void Write(ZPackage pkg)
     {
         pkg.Write(ChestID);

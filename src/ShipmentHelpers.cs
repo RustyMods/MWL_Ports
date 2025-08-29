@@ -121,14 +121,5 @@ public static class ShipmentHelpers
             dict[kvp.Key] = kvp.Value;
         }
     }
-
-    /// <summary>
-    /// Check if item has icons, since ItemData <exception cref="ItemDrop.ItemData.GetIcon"></exception> does not check
-    /// </summary>
-    /// <param name="item"></param>
-    /// <returns></returns>
-    public static bool IsValid(this ItemDrop.ItemData item)
-    {
-        return item.m_shared.m_icons.Length > 0;
-    }
+    public static bool IsValid(this ItemDrop.ItemData item) => item.m_shared.m_icons.Length > 0;
 }

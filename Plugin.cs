@@ -35,21 +35,16 @@ namespace MWL_Ports
         {
             instance = this;
             
-            // create a root object to contain all clones, necessary to hold reference to -int game objects
             root = new GameObject("root");
             DontDestroyOnLoad(root);
             root.SetActive(false);
             
-            // PortNames.Setup();
             Commands.Setup();
             
-            // make shipment manager a monobehavior to keep functions within it's scope while taking advantages of monobehaviors
             gameObject.AddComponent<ShipmentManager>();
             gameObject.AddComponent<PortManager>();
             
-            ShipmentManager.PrefabsToSearch.Add("MWL_Port", "MWL_PortTrader"); // add port variants to search for
-            // this is used by server to iterate through ZDOs and send them to players
-            // this is how portals work
+            ShipmentManager.PrefabsToSearch.Add("MWL_Port", "MWL_PortTrader");
 
             PortUI.PanelPositionConfig = config("3 - UI", "Panel Position", new Vector3(1760f, 850f, 0f), "Set position of UI", false);
             PortUI.PanelPositionConfig.SettingChanged += PortUI.OnPanelPositionConfigChange;
@@ -64,9 +59,6 @@ namespace MWL_Ports
             PortUI.BkgOption.SettingChanged += PortUI.OnBackgroundOptionChange;
             PortUI.UseTeleportTab = config("2 - Settings", "Teleport To Ports", Toggle.Off, "If on, players can teleport to ports");
             PortUI.UseTeleportTab.SettingChanged += PortUI.OnUseTeleportTabChange;
-            // this gets created after blueprints
-            // it will iterate through children to find prefabs
-            // and replace them
             BlueprintLocation location = new BlueprintLocation("portbundle", "MWL_Port_Location");
             location.OnCreated += blueprint =>
             {
@@ -79,14 +71,8 @@ namespace MWL_Ports
                 blueprint.Location.Placement.Prioritized = true;
                 blueprint.Location.Group.Name = "MWL_Ports";
                 blueprint.Location.Placement.DistanceFromSimilar.Min = 300f;
-                blueprint.Location.Icon.Enabled = false;
-                // blueprint.Location.Icon.Icon = MySprite ----> if you want to use a custom sprite
-                // blueprint.Location.Icon.InGameIcon = LocationManager.IconSettings.LocationIcon.Hildir;
             };
             
-            // this gets created before blueprint location
-            // since this prefab has a ZNetView, we make sure to create it as its own prefab first
-            // then the location uses it when creating itself
             Blueprint port = new Blueprint("portbundle", "MWL_Port");
             port.Prefab.AddComponent<Port>();
             port.OnCreated += blueprint =>
@@ -114,9 +100,6 @@ namespace MWL_Ports
                 blueprint.Location.Placement.Prioritized = true;
                 blueprint.Location.Group.Name = "MWL_Ports";
                 blueprint.Location.Placement.DistanceFromSimilar.Min = 300f;
-                blueprint.Location.Icon.Enabled = false;
-                // blueprint.Location.Icon.Icon = MySprite ----> if you want to use a custom sprite
-                // blueprint.Location.Icon.InGameIcon = LocationManager.IconSettings.LocationIcon.Boss;
             };
             
             Blueprint portTrader = new Blueprint("portbundle", "MWL_PortTrader");
@@ -127,9 +110,8 @@ namespace MWL_Ports
                 {
                     if (child.TryGetComponent(out Trader component))
                     {
-                        Debug.LogWarning("Adding port trader component on: " + child.name);
                         child.gameObject.name = "PortTrader";
-                        var trader = child.gameObject.AddComponent<PortTrader>();
+                        PortTrader? trader = child.gameObject.AddComponent<PortTrader>();
                         trader.m_standRange = component.m_standRange;
                         trader.m_greetRange = component.m_greetRange;
                         trader.m_byeRange = component.m_byeRange;
@@ -147,7 +129,6 @@ namespace MWL_Ports
                 PrefabManager.RegisterPrefab(blueprint.Prefab);
             };
             
-            // simple class to clone in-game assets
             Clone piece_chest_wood = new Clone("piece_chest_wood", "MWL_port_chest_wood");
             piece_chest_wood.OnCreated += prefab =>
             {
@@ -286,8 +267,6 @@ namespace MWL_Ports
                     (synchronizedSetting ? " [Synced with Server]" : " [Not Synced with Server]"),
                     description.AcceptableValues, description.Tags);
             ConfigEntry<T> configEntry = Config.Bind(group, name, value, extendedDescription);
-            //var configEntry = Config.Bind(group, name, value, description);
-
             SyncedConfigEntry<T> syncedConfigEntry = ConfigSync.AddConfigEntry(configEntry);
             syncedConfigEntry.SynchronizedConfig = synchronizedSetting;
 

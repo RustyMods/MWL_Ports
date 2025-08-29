@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using BepInEx.Configuration;
 using HarmonyLib;
 using JetBrains.Annotations;
@@ -30,17 +29,11 @@ public static class LoadPortUI
         }
         GameObject craftingPanel = __instance.m_crafting.gameObject;
         PortUI._tooltipPrefab = craftingPanel.GetComponentInChildren<UITooltip>().m_tooltipPrefab;
-        // attached it the HUD, so it was independent of the inventory
-        // I prefer the HUD since that rarely gets hidden on me
         
         GameObject? go = Object.Instantiate(panel, __instance.transform.parent.Find("HUD"));
         go.name = "PortUI";
         go.AddComponent<PortUI>();
         
-        // set all the relevant assets now that we have access to the prefab that we want to target
-        // in this case, crafting panel
-        // we could technically do this sooner, since the ingame gui is attached the _GameMain
-        // but no benefit, since no one is looking at our UI before they enter world
         Text[]? panelTexts = go.GetComponentsInChildren<Text>(true);
         Text[]? listItemTexts = PortUI.ListItem.GetComponentsInChildren<Text>(true);
         
@@ -138,9 +131,8 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
     public static ConfigEntry<MWL_PortsPlugin.Toggle> UseTeleportTab = null!;
     
     public static PortUI? instance;
-    private static Minimap.PinData? m_tempPin; // let's keep this static so we only ever have one port pin on the map
+    private static Minimap.PinData? m_tempPin; 
     
-    // fields set on awake, shouldn't change after
     private float m_leftListMinHeight;
     private static Sprite? m_defaultIcon;
     private float m_listItemHeight;
@@ -276,6 +268,9 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
         gameObject.SetActive(false);
         OnUpdate = null;
         OnSentShipment = null;
+        if (m_currentPort is null) return;
+        m_currentPort.SetInUse(false);
+        m_currentPort = null;
     }
 
     public static void OnBackgroundOptionChange(object sender, EventArgs args)
@@ -472,9 +467,10 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
         switch (m_currentTab)
         {
             case TabOption.Ports:
-                // port tab has 2 options, to exit UI, or send shipment
-                // depending on state of selected destination
-                if (m_selectedDestination == null) Hide();
+                if (m_selectedDestination == null)
+                {
+                    Hide();
+                }
                 else
                 {
                     if (m_currentPort.SendShipment(m_selectedDestination))
@@ -551,7 +547,7 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
     public void LoadTutorials()
     {
         ClearLeftPanel();
-        foreach (PortTutorial? tutorial in PortTutorial.tutorials) AddTutorial(tutorial);
+        foreach (PortTutorial tutorial in PortTutorial.tutorials.Values) AddTutorial(tutorial);
         ResizeLeftList();
     }
 
@@ -591,7 +587,9 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
     {
         ClearLeftPanel();
         if (m_currentPort == null) return;
-        List<Shipment> deliveries = ShipmentManager.GetDeliveries(m_currentPort.m_portID.GUID);
+        List<Shipment> deliveries = ShipmentManager.GetDeliveries(m_currentPort.m_portID.GUID)
+            .OrderBy(shipment => shipment.ArrivalTime)
+            .ToList();
         foreach(Shipment? delivery in deliveries) AddDelivery(delivery);
         ResizeLeftList();
     }
@@ -833,7 +831,7 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
 
         private void SetIcon(ItemDrop.ItemData item)
         {
-            if (!item.IsValid()) return; // make sure item has an icon
+            if (!item.IsValid()) return;
             SetIcon(item.GetIcon());
         }
 
@@ -1158,22 +1156,18 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
 
     public void OnDrag(PointerEventData eventData)
     {
-        // only allow drag if L.Alt is held down
         if (!Input.GetKey(KeyCode.LeftAlt)) return;
-        // move panel
         m_rect.position = Input.mousePosition + mouseDifference;
     }
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        // get the mouse position to make the drag point linked to the mouse position
         Vector2 pos = eventData.position;
         mouseDifference = m_rect.position - new Vector3(pos.x, pos.y, 0);
     }
 
     public void OnEndDrag(PointerEventData eventData)
     {
-        // save new position to config file
         PanelPositionConfig.Value = m_rect.position;
     }
 

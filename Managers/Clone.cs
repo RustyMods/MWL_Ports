@@ -24,10 +24,6 @@ public class Clone
     internal void Create()
     {
         if (Loaded) return;
-        // find prefab, instantiate it into our root object
-        // change the name, and register to scene
-        // so ZNetScene has reference to something tangible
-        // ZNetScene is cloning a clone ----> we made a monster!
         if (Helpers.GetPrefab(PrefabName) is not { } prefab) return;
         Prefab = Object.Instantiate(prefab, MWL_PortsPlugin.root.transform, false);
         Prefab.name = NewName;
