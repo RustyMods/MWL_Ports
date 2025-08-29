@@ -18,6 +18,7 @@ public class Shipment
     public string ShipmentID = string.Empty;
     public ShipmentState State = ShipmentState.Pending;
     public double ArrivalTime;
+    public double ExpirationTime;
     public List<ShipmentItem> Items = new List<ShipmentItem>();
 
     [NonSerialized] public bool IsValid = true;
@@ -31,6 +32,7 @@ public class Shipment
         DestinationPortName = destinationPort.Name;
         ShipmentID = Guid.NewGuid().ToString();
         ArrivalTime = ZNet.instance.GetTimeSeconds() + CalculateDistanceTime(distance);
+        ExpirationTime = ArrivalTime + ShipmentManager.ExpirationTime.Value;
     }
 
     public static double CalculateDistanceTime(float distance)
@@ -60,6 +62,7 @@ public class Shipment
         ShipmentID = data.ShipmentID;
         State = data.State;
         ArrivalTime = data.ArrivalTime;
+        ExpirationTime = data.ExpirationTime;
         Items = data.Items;
         ShipmentManager.Shipments[ShipmentID] = this;
         ShipmentManager.UpdateShipments();
@@ -105,15 +108,27 @@ public class Shipment
 
     public void CheckTransit()
     {
-        // server shares data with all clients
-        // then all clients manages shipment timers
-        State = ZNet.instance.GetTimeSeconds() < ArrivalTime ? ShipmentState.InTransit : ShipmentState.Delivered;
+        double currentTime = ZNet.instance.GetTimeSeconds();
+
+        if (currentTime < ArrivalTime)
+        {
+            State = ShipmentState.InTransit;
+        }
+        else if (currentTime <= ExpirationTime)
+        {
+            State = ShipmentState.Delivered;
+        }
+        else
+        {
+            State = ShipmentState.Expired;
+        }
     }
 
-    public double GetTimeToArrivalSeconds()
-    {
-        return Math.Max(ArrivalTime - ZNet.instance.GetTimeSeconds(), 0);
-    }
+
+    public double GetTimeTo(double targetTime) => Math.Max(targetTime - ZNet.instance.GetTimeSeconds(), 0);
+
+    public double GetTimeToArrivalSeconds() => GetTimeTo(ArrivalTime);
+    public double GetTimeToExpirationSeconds() => GetTimeTo(ExpirationTime);
     
     public static string FormatTime(double totalSeconds)
     {
@@ -123,7 +138,7 @@ public class Shipment
         int minutes = (int)((totalSeconds % 3600) / 60);
         int seconds = (int)(totalSeconds % 60);
 
-        var parts = new List<string>();
+        List<string> parts = new List<string>();
 
         if (hours > 0)   parts.Add($"{hours}h");
         if (minutes > 0) parts.Add($"{minutes}m");
@@ -136,7 +151,11 @@ public class Shipment
     
     public string GetTooltip()
     {
-        string time = FormatTime(GetTimeToArrivalSeconds());
+        double remainingTime = State == ShipmentState.InTransit 
+            ? GetTimeToArrivalSeconds() 
+            : GetTimeToExpirationSeconds();
+
+        string time = FormatTime(remainingTime);
         StringBuilder stringBuilder = new();
         stringBuilder.Append($"Origin Port: <color=orange>{OriginPortName}</color>");
         stringBuilder.Append($"\nDestination Port:  <color=orange>{DestinationPortName}</color>");
@@ -174,7 +193,8 @@ public enum ShipmentState
 {
     Pending,
     InTransit,
-    Delivered
+    Delivered,
+    Expired
 }
 
 [Serializable][PublicAPI][JsonObject(MemberSerialization.Fields)]

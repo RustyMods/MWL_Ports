@@ -22,7 +22,8 @@ public class ShipmentManager : MonoBehaviour
     public static ConfigEntry<string> CurrencyConfig = null!;
     public static ConfigEntry<float> TransitTime = null!;
     public static ConfigEntry<MWL_PortsPlugin.Toggle> OverrideTransitTime = null!;
-    
+    public static ConfigEntry<float> ExpirationTime = null!;
+    public static ConfigEntry<MWL_PortsPlugin.Toggle> ExpirationEnabled = null!;
     private static CustomSyncedValue<string> ServerSyncedShipments = new (MWL_PortsPlugin.ConfigSync, "MWL_SyncedShipments", "");
     
     public static ShipmentManager? instance;
@@ -142,24 +143,31 @@ public class ShipmentManager : MonoBehaviour
         if (!ZNet.instance) return;
         m_checkTransitTimer += dt;
         if (m_checkTransitTimer < m_checkTransitInterval) return;
+        List<Shipment> expiredShipments = new();
         foreach (Shipment shipment in Shipments.Values)
         {
             shipment.CheckTransit();
+            if (shipment.State is ShipmentState.Expired && ExpirationEnabled.Value is MWL_PortsPlugin.Toggle.On) expiredShipments.Add(shipment);
+        }
+        // since everyone is running the timer, no need to get server to manage expiration
+        foreach (Shipment? shipment in expiredShipments)
+        {
+            Shipments.Remove(shipment.ShipmentID);
         }
     }
 
     public void OnClientUpdateShipments()
     {
-        // make sure that the server does not do this, since it is principle manager
-        // no need to update twice
-        if (!ZNet.instance || ZNet.instance.IsServer()) return;
+        if (ZNet.instance && ZNet.instance.IsServer()) return;
         // when the client first connects to the server, and the server has no data
         // make sure that the value passed is not null
         if (string.IsNullOrEmpty(ServerSyncedShipments.Value)) return;
         Dictionary<string, Shipment>? data = JsonConvert.DeserializeObject<Dictionary<string, Shipment>>(ServerSyncedShipments.Value);
         if (data == null) return;
-        Shipments = data;
+        Shipments.Clear();
+        Shipments.AddRange(data);
         OnShipmentsUpdated?.Invoke();
+        MWL_PortsPlugin.MWL_PortsLogger.LogDebug($"Received {Shipments.Count} shipments from server");
     }
 
     public static HashSet<ZDO> GetPorts()
@@ -201,7 +209,7 @@ public class ShipmentManager : MonoBehaviour
     public static List<Shipment> GetDeliveries(string portID)
     {
         List<Shipment> shipments = new List<Shipment>();
-        foreach (var shipment in Shipments.Values)
+        foreach (Shipment? shipment in Shipments.Values)
         {
             if (shipment.DestinationPortID != portID) continue;
             shipments.Add(shipment);
@@ -233,6 +241,7 @@ public class ShipmentManager : MonoBehaviour
         Dictionary<string, Shipment>? data = JsonConvert.DeserializeObject<Dictionary<string, Shipment>>(json);
         if (data == null) return;
         Shipments = data;
+        ServerSyncedShipments.Value = json;
     }
 
     public static void UpdateShipments()

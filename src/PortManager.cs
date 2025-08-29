@@ -15,9 +15,7 @@ public static class ZoneSystem_GenerateLocationsIfNeeded_Patch
     [UsedImplicitly]
     private static void Postfix()
     {
-        MWL_PortsPlugin.MWL_PortsLogger.LogDebug("Generating locations if needed");
         if (PortManager.instance == null) return;
-        MWL_PortsPlugin.MWL_PortsLogger.LogDebug("Invoking update port locations in 10s");
         PortManager.instance.Invoke(nameof(PortManager.UpdatePortLocations), 10f);
     }
 }
@@ -30,7 +28,6 @@ public class PortManager : MonoBehaviour
 
     public void Awake()
     {
-        MWL_PortsPlugin.MWL_PortsLogger.LogDebug("PortManager Awake");
         instance = this;
         ServerSyncedPortLocations.ValueChanged += () =>
         {
@@ -45,7 +42,6 @@ public class PortManager : MonoBehaviour
     public void UpdatePortLocations()
     {
         if (!ZNet.instance || !ZNet.instance.IsServer() || !ZoneSystem.instance) return;
-        MWL_PortsPlugin.MWL_PortsLogger.LogDebug("Updating PortLocations");
         Dictionary<Vector2i, ZoneSystem.LocationInstance>.ValueCollection? allLocations = ZoneSystem.instance.GetLocationList();
         List<ZoneSystem.LocationInstance> ports = allLocations.Where(location => location.m_location.m_group == "MWL_Ports").ToList();
         if (ports.Count == 0) return;

@@ -76,6 +76,14 @@ public static class ShipmentHelpers
         }
     }
 
+    public static void AddRange<T, V>(this Dictionary<T, V> dict, Dictionary<T, V> otherDict)
+    {
+        foreach (var kvp in otherDict)
+        {
+            dict[kvp.Key] = kvp.Value;
+        }
+    }
+
     public static bool IsValid(this ItemDrop.ItemData item)
     {
         return item.m_shared.m_icons.Length > 0;

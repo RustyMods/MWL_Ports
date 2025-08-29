@@ -571,7 +571,9 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
     {
         ClearLeftPanel();
         if (m_currentPort == null) return;
-        List<Shipment> shipments = ShipmentManager.GetShipments(m_currentPort.m_portID.GUID);
+        List<Shipment> shipments = ShipmentManager.GetShipments(m_currentPort.m_portID.GUID)
+            .OrderBy(shipment => shipment.ArrivalTime)
+            .ToList();
         foreach (Shipment shipment in shipments) AddShipment(shipment);
         ResizeLeftList();
     }
@@ -628,7 +630,7 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
             float timer = 0f;
             OnUpdate = dt =>
             {
-                bool shouldUpdate = shipment.State == ShipmentState.InTransit;
+                bool shouldUpdate = shipment.State is ShipmentState.InTransit or ShipmentState.Delivered;
                 if (!shouldUpdate) return;
                 timer += dt;
                 if (timer <= 1f) return; // update every 1 second
@@ -668,7 +670,7 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
             float timer = 0f;
             OnUpdate = dt =>
             {
-                bool shouldUpdate = shipment.State == ShipmentState.InTransit;
+                bool shouldUpdate = shipment.State is ShipmentState.InTransit or ShipmentState.Delivered;
                 if (!shouldUpdate) return;
                 timer += dt;
                 if (timer <= 1f) return; // update every 1 second
@@ -721,8 +723,8 @@ public class PortUI : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHa
             {
                 if (hasItems) Requirements.Update(dt, Player.m_localPlayer);
                 bool shouldUpdate =
-                    info.shipments.Any(s => s.State == ShipmentState.InTransit) ||
-                    info.deliveries.Any(d => d.State == ShipmentState.InTransit);
+                    info.shipments.Any(s => s.State is ShipmentState.InTransit or ShipmentState.Delivered) ||
+                    info.deliveries.Any(d => d.State is ShipmentState.InTransit or ShipmentState.Delivered);
                 if (!shouldUpdate) return;
                 timer += dt;
                 if (timer <= 1f) return; // update every 1 second

@@ -472,13 +472,19 @@ public class Port : MonoBehaviour, Interactable, Hoverable
             sb.Append($"\nDeliveries (<color=yellow>{deliveries.Count}</color>): ");
             foreach (Shipment? delivery in deliveries)
             {
-                string time = Shipment.FormatTime(delivery.GetTimeToArrivalSeconds());
+                double remainingTime = delivery.State == ShipmentState.InTransit 
+                    ? delivery.GetTimeToArrivalSeconds() 
+                    : delivery.GetTimeToExpirationSeconds();
+                string time = Shipment.FormatTime(remainingTime);
                 sb.AppendFormat("\nOrigin: <color=orange>{0}</color> (<color=yellow>{1}</color>{2})", delivery.OriginPortName, delivery.State, string.IsNullOrEmpty(time) ? "" : $", {time}");
             }
             sb.Append($"\n\nShipments (<color=yellow>{shipments.Count}</color>): ");
             foreach (Shipment? shipment in shipments)
             {
-                string time = Shipment.FormatTime(shipment.GetTimeToArrivalSeconds());
+                double remainingTime = shipment.State == ShipmentState.InTransit 
+                    ? shipment.GetTimeToArrivalSeconds() 
+                    : shipment.GetTimeToExpirationSeconds();
+                string time = Shipment.FormatTime(remainingTime);
                 sb.AppendFormat("\nDestination: <color=orange>{0}</color> (<color=yellow>{1}</color>{2})", shipment.DestinationPortName, shipment.State, string.IsNullOrEmpty(time) ? "" : $", {time}");
             }
             return sb.ToString();

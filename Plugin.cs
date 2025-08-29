@@ -57,6 +57,8 @@ namespace MWL_Ports
             ShipmentManager.CurrencyConfig.SettingChanged += (_, _) => ShipmentManager._currencyItem = null;
             ShipmentManager.OverrideTransitTime = config("2 - Settings", "Override Transit Duration", Toggle.Off, "If on, transit time will be based off override instead of calculated based off distance");
             ShipmentManager.TransitTime = config("2 - Settings", "Transit Duration", 1800f, "Set override transit duration in seconds, 1800 = 30min");
+            ShipmentManager.ExpirationEnabled = config("2 - Settings", "Expires", Toggle.On, "If on, shipments can expire");
+            ShipmentManager.ExpirationTime = config("2 - Settings", "Expiration Time", 3600f, "Set time until expiration, 3600 = 1 hour");
             PortUI.BkgOption = config("3 - UI", "Background", PortUI.BackgroundOption.Opaque, "Set background type", false);
             PortUI.BkgOption.SettingChanged += PortUI.OnBackgroundOptionChange;
             PortUI.UseTeleportTab = config("2 - Settings", "Teleport To Ports", Toggle.Off, "If on, players can teleport to ports");
